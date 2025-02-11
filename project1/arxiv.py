@@ -1,8 +1,15 @@
 from typing import List, Dict, Optional
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 import asyncio
 from playwright.async_api import async_playwright
 import aiohttp
+
+
+async def _load_excel():
+    wb = load_workbook(filename='arxiv_scraped_data.xlsx')
+    ws = wb.active
+    return ws
+
 
 def _save_excel(author_list: List[Dict], keyword: str) -> None:
     if not author_list:
@@ -11,34 +18,18 @@ def _save_excel(author_list: List[Dict], keyword: str) -> None:
 
     wb = Workbook()
     ws = wb.active
-    ws.append(["Authors", "AuthorIDs", "PaperID", "LastPaperLink", "AmountOfMentions", "Keyword"])
+    ws.append(["Author", "AuthorID", "PaperID", "LastPaperLink", "AmountOfMentions", "Keyword"])
 
     for author in author_list:
-        # Extract the list of authors
-        authors = author.get("Authors", [])
-        if not isinstance(authors, list):
-            authors = [authors]  # Ensure it's a list even if it's a single author
-
-        # Extract the list of AuthorIDs
-        author_ids = author.get("AuthorIDs", [])
-        if not isinstance(author_ids, list):
-            author_ids = [author_ids]  # Ensure it's a list even if it's a single ID
-
-        # Ensure the number of authors and AuthorIDs match
-        if len(authors) != len(author_ids):
-            print(f"     ⚠️ [WARNING] Mismatch between authors and AuthorIDs for paper {author.get('PaperID', 'unknown')}")
-            continue
-
-        # Save each author separately
-        for i in range(len(authors)):
-            ws.append([
-                authors[i],  # Single author
-                author_ids[i],  # Corresponding AuthorID
-                author.get("PaperID", "null"),  # PaperID (repeated for each author)
-                ", ".join(author["LastPaperLink"]) if isinstance(author.get("LastPaperLink"), list) else author.get("LastPaperLink", "null"),  # LastPaperLink
-                author.get("AmountOfMentions", "null"),  # AmountOfMentions
-                keyword  # Keyword
-            ])
+        # Ensure we pass the details as a single tuple or list
+        ws.append([
+            author.get("Author", "null"),
+            author.get("AuthorID", "null"),
+            author.get("PaperID", "null"),
+            author.get("LastPaperLink", "null"),
+            author.get("AmountOfMentions", "null"),
+            author.get("Keyword", "null")
+        ])
 
     try:
         wb.save("arxiv_scraped_data.xlsx")
@@ -46,8 +37,10 @@ def _save_excel(author_list: List[Dict], keyword: str) -> None:
     except Exception as e:
         print(f"    ❌ [ERROR] An error occurred while saving Excel file: {e}")
 
+
 class ArxivScraper:
-    def __init__(self, keyword: str = "photonic circuits", date_from: Optional[str] = None, date_to: Optional[str] = None):
+    def __init__(self, keyword: str = "photonic circuits", date_from: Optional[str] = None,
+                 date_to: Optional[str] = None):
         self.page = None
         self.keyword = keyword
         self.date_from = date_from
@@ -61,13 +54,13 @@ class ArxivScraper:
             await next_page_locator.wait_for(state='visible', timeout=10000)
             next_class = await next_page_locator.get_attribute("class")
             if next_class and "disabled" in next_class:
-                print("     [INFO] No more pages.")
+                print("    ✅ [INFO] No more pages.")
                 return False
             await next_page_locator.click()
             await asyncio.sleep(1)
             return True
         except Exception as e:
-            print(f"     ❌ [ERROR] Pagination failed: {e}")
+            print(f"     [INFO] End of the page.")
             return False
 
     async def connect_to_arxiv(self):
@@ -131,7 +124,8 @@ class ArxivScraper:
 
             for paper in papers:
                 try:
-                    paper_link = await (paper.locator('xpath=//p[@class="list-title is-inline-block"]/a').get_attribute("href"))
+                    paper_link = await (
+                        paper.locator('xpath=//p[@class="list-title is-inline-block"]/a').get_attribute("href"))
                     author_locator = paper.locator('xpath=//p[contains(@class, "authors")]')
                     author_text = await author_locator.text_content()
 
@@ -143,19 +137,17 @@ class ArxivScraper:
                         print(f"     ⚠️ [WARNING] Paper ID missing for one entry, skipping...")
                         continue
 
-                    authors = []
                     if author_text:
                         author_names = author_text.split(":")[1].split(",")
-                        authors = [author.strip() for author in author_names]
-                        print(authors)
-                    self.papers.append({
-                        "PaperID": paper_id,
-                        "Authors": authors,
-                        "AuthorIDs": authors,
-                        "LastPaperLink": [],
-                        "AmountOfMentions": 0,
-                        "Keyword": self.keyword
-                    })
+                        for author in author_names:
+                            self.papers.append({
+                                "PaperID": paper_id,
+                                "Author": author.strip(),
+                                "AuthorID": 0,
+                                "LastPaperLink": "",
+                                "AmountOfMentions": 0,
+                                "Keyword": self.keyword
+                            })
 
                 except Exception as e:
                     print(f"     ❌ [ERROR] Failed to process a paper entry: {e}")
@@ -172,11 +164,12 @@ class ArxivScraper:
         if not self.papers:
             print("     [INFO] No paper links found!")
             return None
-
+        print(self.papers)
         async with aiohttp.ClientSession() as session:
             for paper in self.papers:
                 await asyncio.sleep(2)
-                api = f"https://api.semanticscholar.org/v1/paper/arXiv:{paper['PaperID']}?include_unknown_references=true"
+                api = (f"https://api.semanticscholar.org/v1/paper/arXiv:{paper['PaperID']}"
+                       f"?include_unknown_references=true")
                 try:
                     async with session.get(api) as response:
                         response.raise_for_status()
@@ -186,8 +179,10 @@ class ArxivScraper:
                             print(f"    [WARNING] No authors found for paper {paper['PaperID']}")
                             continue
 
-                        author_ids = [author.get("authorId", "null") for author in data["authors"]]
-                        paper["AuthorIDs"] = author_ids
+                        for author in data['authors']:
+                            if author.get("name", "").split(" ")[-1] == paper["Author"].split(" ")[-1]:
+                                paper["AuthorID"] = author.get("authorId", "null")
+                                break
 
                         print(f"     [INFO] Processed authors for paper {paper['PaperID']}")
                 except aiohttp.ClientResponseError as e:
@@ -198,16 +193,61 @@ class ArxivScraper:
                     print(f"    ❌ [ERROR] An error occurred for paper {paper['PaperID']}: {e}")
                 await asyncio.sleep(1)
 
-        if not any(paper["AuthorIDs"] for paper in self.papers):
+        if not any(paper["AuthorID"] for paper in self.papers):
             print("     [INFO] No author details found for any papers.")
             return None
 
         print("    ✅ [INFO] Author details scraped successfully!")
         return self.papers
 
+
+    async def get_amount_of_mentions(self) -> Optional[List[Dict]]:
+        print("\n📍 Step 4: Using Scholar API to extract amount of mentions!")
+        if not self.papers:
+            print("     [INFO] No author details found!")
+            return None
+
+        async with aiohttp.ClientSession() as session:
+            for row_info in self.papers:
+                author_id = row_info.get("AuthorID")  # List of author IDs
+                if author_id == "null":
+                    print(f"    [INFO] No valid author name for {row_info['Author']}. Skipping.")
+                    continue
+
+                # Create the API URL with the first author's authorId (or pick another strategy to query)
+                api = (f"https://api.semanticscholar.org/graph/v1/author/{author_id}"
+                       f"/papers?fields=url,publicationDate,authors&limit=1000")
+                try:
+                    async with session.get(api) as response:
+                        response.raise_for_status()
+                        data = await response.json()
+
+                        if 'data' in data and data['data']:
+                            amount_of_mentions = data['data']  # List of papers
+                            print(f"📄 {row_info['Author']} -> {len(amount_of_mentions)} papers found.")
+
+                            # Update the amount of mentions for the author
+                            row_info["AmountOfMentions"] = len(amount_of_mentions)
+                        else:
+                            print(f"    ⚠️ [WARNING] No papers found for author {row_info['Author']}")
+
+                        await asyncio.sleep(2)  # Sleep to prevent hitting rate limits
+
+                except aiohttp.ClientResponseError as e:
+                    print(f"    ❌ [ERROR] HTTP error for author {row_info['Author']}: {e}")
+                except KeyError as e:
+                    print(f"    ❌ [ERROR] Missing key in response for author {row_info['Author']}: {e}")
+                except Exception as e:
+                    print(f"    ❌ [ERROR] An error occurred for author {row_info['Author']}: {e}")
+
+        print("    ✅ [INFO] Related papers scraped successfully!")
+        return self.papers
+
+
 async def main():
+    from pprint import pprint
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=False)
+        browser = await pw.chromium.launch(headless=True)
         context = await browser.new_context(viewport={'width': 1280, 'height': 720})
         page = await context.new_page()
 
@@ -223,6 +263,9 @@ async def main():
 
         # Step 3: Get author details
         await arxiv_scraper.get_author_details()
+
+        # Step 4: Get amount of mentions
+        await arxiv_scraper.get_amount_of_mentions()
 
         # Save the scraped details to an Excel file
         _save_excel(arxiv_scraper.papers, arxiv_scraper.keyword)
