@@ -1,79 +1,76 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-import requests
-from typing import List, Optional, Dict
-import time
+from typing import List, Dict, Optional
+from openpyxl import Workbook
+import asyncio
+from playwright.async_api import async_playwright
+import aiohttp
+
+def _save_excel(author_list: List[Dict], keyword: str) -> None:
+    if not author_list:
+        print("     [INFO] No author details found!")
+        return
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Authors", "AuthorIDs", "PaperID", "LastPaperLink", "AmountOfMentions", "Keyword"])
+
+    for author in author_list:
+        # Extract the list of authors
+        authors = author.get("Authors", [])
+        if not isinstance(authors, list):
+            authors = [authors]  # Ensure it's a list even if it's a single author
+
+        # Extract the list of AuthorIDs
+        author_ids = author.get("AuthorIDs", [])
+        if not isinstance(author_ids, list):
+            author_ids = [author_ids]  # Ensure it's a list even if it's a single ID
+
+        # Ensure the number of authors and AuthorIDs match
+        if len(authors) != len(author_ids):
+            print(f"     ⚠️ [WARNING] Mismatch between authors and AuthorIDs for paper {author.get('PaperID', 'unknown')}")
+            continue
+
+        # Save each author separately
+        for i in range(len(authors)):
+            ws.append([
+                authors[i],  # Single author
+                author_ids[i],  # Corresponding AuthorID
+                author.get("PaperID", "null"),  # PaperID (repeated for each author)
+                ", ".join(author["LastPaperLink"]) if isinstance(author.get("LastPaperLink"), list) else author.get("LastPaperLink", "null"),  # LastPaperLink
+                author.get("AmountOfMentions", "null"),  # AmountOfMentions
+                keyword  # Keyword
+            ])
+
+    try:
+        wb.save("arxiv_scraped_data.xlsx")
+        print("    ✅ [INFO] Details successfully saved to Excel!")
+    except Exception as e:
+        print(f"    ❌ [ERROR] An error occurred while saving Excel file: {e}")
 
 class ArxivScraper:
-    def __init__(self, keyword: str = "photonic circuits",
-                 date_from: Optional[str] = None, date_to: Optional[str] = None):
-        options = Options()
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--ignore-certificate-errors")
-        # options.add_argument("--headless")  # Uncomment to run in headless mode
-
+    def __init__(self, keyword: str = "photonic circuits", date_from: Optional[str] = None, date_to: Optional[str] = None):
+        self.page = None
         self.keyword = keyword
         self.date_from = date_from
         self.date_to = date_to
-        self.paper_id_list : List[str] = []
-        self.author_list : List[Dict] = []
+        self.papers: List[Dict] = []
 
-        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
-    def _save_excel(self):
-        if not self.author_list:
-            print("     [INFO] No author details found!")
-            return None
-
-        from openpyxl import Workbook
-        wb = Workbook()
-        ws = wb.active
-        ws.append(["Author",
-                   "ID",
-                   "PaperID",
-                   "LastPaperLink",
-                   "LastPaperDate",
-                   "AmountOfMentions",
-                   "Keyword"])
-        for author in self.author_list:
-            ws.append([author["Author"],
-                       author["ID"],
-                       author["PaperID"],
-                       author.get("LastPaperLink", "null"),
-                       author.get("LastPaperDate", "null"),
-                       author.get("AmountOfMentions", "null"),
-                       self.keyword
-                       ])
-        try:
-            wb.save(f"arxiv_scraped_data.xlsx")
-            print("    ✅ [INFO] Details successfully saved to Excel!")
-        except Exception as e:
-            print(f"    ❌ [ERROR] An error occurred while saving Excel file: {e}")
-
-    def pagination(self) -> bool:
+    async def pagination(self) -> bool:
         print("     [INFO] Checking for next page...")
-        next_page_locator = (By.XPATH, '//*[@id="main-container"]/div[2]/nav[2]/a[2]')
+        next_page_locator = self.page.locator('xpath=//*[@id="main-container"]/div[2]/nav[1]/a[2]')
         try:
-            next_page = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable(next_page_locator))
-            if "disabled" in next_page.get_attribute("class"):
+            await next_page_locator.wait_for(state='visible', timeout=10000)
+            next_class = await next_page_locator.get_attribute("class")
+            if next_class and "disabled" in next_class:
                 print("     [INFO] No more pages.")
                 return False
-            next_page.click()
-            time.sleep(1)
+            await next_page_locator.click()
+            await asyncio.sleep(1)
             return True
         except Exception as e:
             print(f"     ❌ [ERROR] Pagination failed: {e}")
             return False
 
-    def connect_to_arxiv(self):
+    async def connect_to_arxiv(self):
         print("\n📍 Step 1: Connecting to Arxiv!")
         if not self.date_from or not self.date_to:
             print("     ⚠️ [INFO] Date range not specified. Searching all papers")
@@ -82,153 +79,153 @@ class ArxivScraper:
             url = "https://arxiv.org/search/advanced"
 
         try:
-            self.driver.get(url)
-            time.sleep(2)
+            await self.page.goto(url, wait_until='load')
+            await asyncio.sleep(2)
             print("     ✅ [INFO] Arxiv connection successful!")
         except Exception as e:
-            print(f"     ❌ [ERROR] An error occurred: {e}")
+            print(f"     ❌ [ERROR] An error occurred during navigation: {e}")
 
         try:
-            search_box = None
             if self.date_from or self.date_to:
-                search_box = self.driver.find_element(By.XPATH, '//*[@id="terms-0-term"]')
-                date_range = self.driver.find_element(By.XPATH, '//*[@id="date-filter_by-3"]')
-                ActionChains(self.driver).move_to_element(date_range).click().perform()
-                date_from_box = self.driver.find_element(By.XPATH, '//*[@id="date-from_date"]')
-                date_to_box = self.driver.find_element(By.XPATH, '//*[@id="date-to_date"]')
-                ActionChains(self.driver).move_to_element(date_from_box).click().perform()
-                date_from_box.send_keys(self.date_from)
-                time.sleep(1)
-                ActionChains(self.driver).move_to_element(date_to_box).click().perform()
-                date_to_box.send_keys(self.date_to)
-                time.sleep(1)
+                search_box = self.page.locator('xpath=//*[@id="terms-0-term"]')
+                date_range = self.page.locator('xpath=//*[@id="date-filter_by-3"]')
+                await date_range.click()
+                date_from_box = self.page.locator('xpath=//*[@id="date-from_date"]')
+                date_to_box = self.page.locator('xpath=//*[@id="date-to_date"]')
+                await date_from_box.click()
+                await date_from_box.fill(self.date_from)
+                await asyncio.sleep(1)
+                await date_to_box.click()
+                await date_to_box.fill(self.date_to)
+                await asyncio.sleep(1)
             else:
-                search_box = self.driver.find_element(By.XPATH, '//*[@id="header"]/div[2]/form/div/div[1]/input')
-            search_box.send_keys(self.keyword)
-            search_box.send_keys(Keys.RETURN)
+                search_box = self.page.locator('xpath=//*[@id="header"]/div[2]/form/div/div[1]/input')
+            await search_box.fill(self.keyword)
+            await search_box.press('Enter')
             print("     [INFO] Searching keywords!")
-            time.sleep(2)
+            await asyncio.sleep(2)
         except Exception as e:
-            print(f"     ❌ [ERROR] An error occurred: {e}")
+            print(f"     ❌ [ERROR] An error occurred while searching: {e}")
 
-    def get_paper_ids(self, max_pages_DEBUG_MODE: Optional[int] = None) -> List[str]:
+    async def get_paper_ids(self, max_pages_DEBUG_MODE: Optional[int] = None) -> List[Dict]:
         print("\n📍 Step 2: Scraping paper links!")
         page_count = 0
+        if max_pages_DEBUG_MODE:
+            print(f"     ⚠️ [INFO] Debug mode enabled. Scraping only {max_pages_DEBUG_MODE} pages.")
+
         while True:
             page_count += 1
             if max_pages_DEBUG_MODE and page_count > max_pages_DEBUG_MODE:
                 break
 
-            # Scrape current page
-            paper_entries = self.driver.find_elements(By.XPATH, '//*[@id="main-container"]/div[2]/ol/li')
-            for paper in paper_entries:
-                paper_link = paper.find_element(By.XPATH, './/p[@class="list-title is-inline-block"]/a').get_attribute("href")
-                paper_id = paper_link.split("/")[-1]
-                self.paper_id_list.append(paper_id)
-            print(f"     [INFO] Scraped page {page_count}")
+            try:
+                paper_entries = self.page.locator('xpath=//*[@id="main-container"]/div[2]/ol/li')
+            except Exception as e:
+                print(f"     ❌ [ERROR] Waiting for paper entries failed: {e}")
+                break
 
-            # Attempt pagination
-            if not self.pagination():
+            papers = await paper_entries.all()
+            if not papers:
+                print("     [INFO] No paper entries found on this page.")
+                break
+
+            for paper in papers:
+                try:
+                    paper_link = await (paper.locator('xpath=//p[@class="list-title is-inline-block"]/a').get_attribute("href"))
+                    author_locator = paper.locator('xpath=//p[contains(@class, "authors")]')
+                    author_text = await author_locator.text_content()
+
+                    paper_id = None
+                    if paper_link:
+                        paper_id = paper_link.split("/")[-1]
+
+                    if not paper_id:
+                        print(f"     ⚠️ [WARNING] Paper ID missing for one entry, skipping...")
+                        continue
+
+                    authors = []
+                    if author_text:
+                        author_names = author_text.split(":")[1].split(",")
+                        authors = [author.strip() for author in author_names]
+                        print(authors)
+                    self.papers.append({
+                        "PaperID": paper_id,
+                        "Authors": authors,
+                        "AuthorIDs": authors,
+                        "LastPaperLink": [],
+                        "AmountOfMentions": 0,
+                        "Keyword": self.keyword
+                    })
+
+                except Exception as e:
+                    print(f"     ❌ [ERROR] Failed to process a paper entry: {e}")
+
+            print(f"     [INFO] Scraped page {page_count}")
+            if not await self.pagination():
                 break
 
         print("     ✅ [INFO] Paper links scraped successfully!")
-        return self.paper_id_list
+        return self.papers
 
-    def get_author_details(self) -> Optional[List[Dict]]:
+    async def get_author_details(self) -> Optional[List[Dict]]:
         print("\n📍 Step 3: Scraping author details!")
-
-        if not self.paper_id_list:
+        if not self.papers:
             print("     [INFO] No paper links found!")
             return None
 
-        for paper_id in self.paper_id_list:
-            api = f"https://api.semanticscholar.org/v1/paper/arXiv:{paper_id}?include_unknown_references=true"
-            try:
-                response = requests.get(api)
-                response.raise_for_status()  # Raises an HTTPError for bad responses
+        async with aiohttp.ClientSession() as session:
+            for paper in self.papers:
+                await asyncio.sleep(2)
+                api = f"https://api.semanticscholar.org/v1/paper/arXiv:{paper['PaperID']}?include_unknown_references=true"
+                try:
+                    async with session.get(api) as response:
+                        response.raise_for_status()
+                        data = await response.json()
 
-                data = response.json()
-                if 'authors' not in data:
-                    print(f"    [WARNING] No authors found for paper {paper_id}")
-                    continue
+                        if 'authors' not in data:
+                            print(f"    [WARNING] No authors found for paper {paper['PaperID']}")
+                            continue
 
-                authors = data["authors"]
-                for author in authors:
-                    self.author_list.append({
-                        "Author": author["name"],
-                        "ID": author.get("authorId", "null"),
-                        "PaperID": paper_id,
-                    })
-                print(f"     [INFO] Processed authors for paper {paper_id}")
+                        author_ids = [author.get("authorId", "null") for author in data["authors"]]
+                        paper["AuthorIDs"] = author_ids
 
-            except requests.exceptions.HTTPError as e:
-                print(f"    ❌ [ERROR] HTTP error for paper {paper_id}: {e}")
-            except KeyError as e:
-                print(f"    ❌ [ERROR] Missing key in response for paper {paper_id}: {e}")
-            except Exception as e:
-                print(f"    ❌ [ERROR] An error occurred for paper {paper_id}: {e}")
-            time.sleep(1)
-        if not self.author_list:
+                        print(f"     [INFO] Processed authors for paper {paper['PaperID']}")
+                except aiohttp.ClientResponseError as e:
+                    print(f"    ❌ [ERROR] HTTP error for paper {paper['PaperID']}: {e}")
+                except KeyError as e:
+                    print(f"    ❌ [ERROR] Missing key in response for paper {paper['PaperID']}: {e}")
+                except Exception as e:
+                    print(f"    ❌ [ERROR] An error occurred for paper {paper['PaperID']}: {e}")
+                await asyncio.sleep(1)
+
+        if not any(paper["AuthorIDs"] for paper in self.papers):
             print("     [INFO] No author details found for any papers.")
             return None
 
-        print("    ✅[INFO] Author details scraped successfully!")
-        return self.author_list
+        print("    ✅ [INFO] Author details scraped successfully!")
+        return self.papers
 
-    def get_related_papers(self) -> Optional[List[Dict]]:
-        print("\n📍 Step 4: Connecting to Scholar and scraping related papers!")
-        if not self.author_list:
-            print("     [INFO] No author details found!")
-            return None
+async def main():
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(headless=False)
+        context = await browser.new_context(viewport={'width': 1280, 'height': 720})
+        page = await context.new_page()
 
-        for author in self.author_list:
-            author_id = author.get("ID")
-            if author_id == "null":
-                print(f"    [INFO] No valid author ID for {author['Author']}. Skipping.")
-                continue
+        # Create the ArxivScraper instance and assign the open page
+        arxiv_scraper = ArxivScraper(keyword="photonic circuits", date_from="2022-01-01", date_to="2022-01-31")
+        arxiv_scraper.page = page
 
-            try:
-                url = f"https://api.semanticscholar.org/graph/v1/author/{author_id}/papers?fields=url,publicationDate,authors&limit=1000"
-                response = requests.get(url)
-                response.raise_for_status()
-                data = response.json()
+        # Step 1: Connect and search
+        await arxiv_scraper.connect_to_arxiv()
 
-                if 'data' not in data or not data['data']:
-                    print(f"    ⚠️ [WARNING] No papers found for author {author['Author']}")
-                    continue
+        # Step 2: Get paper IDs (use max_pages_DEBUG_MODE=1 for testing)
+        await arxiv_scraper.get_paper_ids(max_pages_DEBUG_MODE=1)
 
-                paper_info = data['data'][0]
-                amount_of_mentions = data['data']
-                paper_link = paper_info.get('url', 'null')
-                paper_year = paper_info.get('year', 'null')
+        # Step 3: Get author details
+        await arxiv_scraper.get_author_details()
 
-                print(
-                    f"📄 {author['Author']} -> Last Paper Link: {paper_link},"
-                    f" Last Paper Date: {paper_year}, Mentions: {len(amount_of_mentions)}")
-
-                for details in self.author_list:
-                    if details["Author"] == author["Author"]:  # Ensure we update the correct author
-                        details["LastPaperLink"] = paper_link
-                        details["LastPaperDate"] = paper_year
-                        details["AmountOfMentions"] = len(amount_of_mentions)
-                time.sleep(1)
-            except requests.exceptions.HTTPError as e:
-                print(f"    ❌ [ERROR] HTTP error for author {author['Author']}: {e}")
-            except KeyError as e:
-                print(f"    ❌ [ERROR] Missing key in response for author {author['Author']}: {e}")
-            except Exception as e:
-                print(f"    ❌ [ERROR] An error occurred for author {author['Author']}: {e}")
-
-        print("    ✅ [INFO] Related papers scraped successfully!")
-        return self.author_list
+        # Save the scraped details to an Excel file
+        _save_excel(arxiv_scraper.papers, arxiv_scraper.keyword)
 
 if __name__ == "__main__":
-    scraper = ArxivScraper()
-    scraper.connect_to_arxiv()
-    scraper.get_paper_ids()
-    scraper.get_author_details()
-    scraper.driver.quit()
-    scraper.get_related_papers()
-    import json
-    print(json.dumps(scraper.author_list, indent=4))
-    scraper._save_excel()
+    asyncio.run(main())
