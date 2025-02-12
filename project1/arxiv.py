@@ -91,9 +91,43 @@ class ArxivScraper:
                 await date_to_box.click()
                 await date_to_box.fill(self.date_to)
                 await asyncio.sleep(1)
-            else:
-                search_box = self.page.locator('xpath=//*[@id="header"]/div[2]/form/div/div[1]/input')
-            await search_box.fill(self.keyword)
+
+            # Combine all search terms (keyword, OR, NOT)
+            search_terms = []
+            if self.keyword:
+                search_terms.extend(self.keyword if isinstance(self.keyword, list) else [self.keyword])
+            if self.OR:
+                search_terms.extend(self.OR if isinstance(self.OR, list) else [self.OR])
+            if self.NOT:
+                search_terms.extend(self.NOT if isinstance(self.NOT, list) else [self.NOT])
+
+
+            # Fill the first search box (already present)
+            search_box = self.page.locator(f'xpath=//*[@id="terms-0-term"]')
+            await search_box.fill(search_terms[0])
+            print(f"     [INFO] Entered: {search_terms[0]}")
+
+            # Handle additional search terms dynamically
+            for i, term in enumerate(search_terms[1:], start=1):
+                add_button_xpath = f'//*[@id="terms-fieldset"]/fieldset/div[{i + 1}]/div/button[1]'
+                another_term_button = self.page.locator(f'xpath={add_button_xpath}')
+
+                await another_term_button.click()
+                await asyncio.sleep(1)
+
+                dropdown_xpath = self.page.locator(f'xpath=//*[@id="terms-{i}-operator"]')
+                if term in self.OR:
+                    await dropdown_xpath.select_option("OR")
+                elif term in self.NOT:
+                    await dropdown_xpath.select_option("NOT")
+                else:
+                    await dropdown_xpath.select_option("AND")
+
+                new_search_box = self.page.locator(f'xpath=//*[@id="terms-{i}-term"]')
+                await new_search_box.fill(term)
+                print(f"     [INFO] Entered: {term}")
+
+            # Press Enter on the last search box to submit
             await search_box.press('Enter')
             print("     [INFO] Searching keywords!")
             await asyncio.sleep(2)
