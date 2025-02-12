@@ -39,8 +39,11 @@ def _save_excel(author_list: List[Dict], keyword: str) -> None:
 
 
 class ArxivScraper:
-    def __init__(self, keyword: str = "photonic circuits", date_from: Optional[str] = None,
-                 date_to: Optional[str] = None):
+    def __init__(self, keyword: Optional[List[str]] = None,
+                 OR: Optional[List[str]]  = None,
+                 NOT: Optional[List[str]] = None,
+                 date_from: str = None,
+                 date_to: str = None):
         self.page = None
         self.keyword = keyword
         self.date_from = date_from
