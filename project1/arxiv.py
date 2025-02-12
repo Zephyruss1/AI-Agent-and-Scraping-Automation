@@ -45,7 +45,9 @@ class ArxivScraper:
                  date_from: str = None,
                  date_to: str = None):
         self.page = None
-        self.keyword = keyword
+        self.keyword = keyword if keyword is not None else []
+        self.OR = OR if OR is not None else []
+        self.NOT = NOT if NOT is not None else []
         self.date_from = date_from
         self.date_to = date_to
         self.papers: List[Dict] = []
