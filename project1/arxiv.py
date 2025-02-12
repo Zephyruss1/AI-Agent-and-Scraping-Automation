@@ -1,8 +1,14 @@
+import os
 from typing import List, Dict, Optional
 from openpyxl import Workbook, load_workbook
 import asyncio
 from playwright.async_api import async_playwright
 import aiohttp
+import aiofiles
+import urllib.request
+import time
+import os
+import concurrent.futures
 
 
 async def _load_excel():
@@ -11,7 +17,7 @@ async def _load_excel():
     return ws
 
 
-def _save_excel(author_list: List[Dict], keyword: str) -> None:
+def _save_excel(author_list: List[Dict], keyword: List[str]) -> None:
     if not author_list:
         print("     [INFO] No author details found!")
         return
@@ -28,7 +34,8 @@ def _save_excel(author_list: List[Dict], keyword: str) -> None:
             author.get("PaperID", "null"),
             author.get("LastPaperLink", "null"),
             author.get("AmountOfMentions", "null"),
-            author.get("Keyword", "null")
+            ", ".join(author.get("Keyword", ["null"])) if isinstance(author.get("Keyword", list), list) else author.get(
+                "Keyword", "null")
         ])
 
     try:
@@ -68,13 +75,10 @@ class ArxivScraper:
             print(f"     [INFO] End of the page.")
             return False
 
-    async def connect_to_arxiv(self):
+    async def connect_to_arxiv_and_search(self):
         print("\n📍 Step 1: Connecting to Arxiv!")
-        if not self.date_from or not self.date_to:
-            print("     ⚠️ [INFO] Date range not specified. Searching all papers")
-            url = "https://arxiv.org/"
-        else:
-            url = "https://arxiv.org/search/advanced"
+
+        url = "https://arxiv.org/search/advanced"
 
         try:
             await self.page.goto(url, wait_until='load')
@@ -85,15 +89,12 @@ class ArxivScraper:
 
         try:
             if self.date_from or self.date_to:
-                search_box = self.page.locator('xpath=//*[@id="terms-0-term"]')
                 date_range = self.page.locator('xpath=//*[@id="date-filter_by-3"]')
                 await date_range.click()
                 date_from_box = self.page.locator('xpath=//*[@id="date-from_date"]')
                 date_to_box = self.page.locator('xpath=//*[@id="date-to_date"]')
-                await date_from_box.click()
                 await date_from_box.fill(self.date_from)
                 await asyncio.sleep(1)
-                await date_to_box.click()
                 await date_to_box.fill(self.date_to)
                 await asyncio.sleep(1)
 
@@ -134,7 +135,6 @@ class ArxivScraper:
 
             # Press Enter on the last search box to submit
             await search_box.press('Enter')
-            print("     [INFO] Searching keywords!")
             await asyncio.sleep(2)
         except Exception as e:
             print(f"     ❌ [ERROR] An error occurred while searching: {e}")
@@ -203,7 +203,6 @@ class ArxivScraper:
         if not self.papers:
             print("     [INFO] No paper links found!")
             return None
-        print(self.papers)
         async with aiohttp.ClientSession() as session:
             for paper in self.papers:
                 await asyncio.sleep(2)
@@ -221,7 +220,6 @@ class ArxivScraper:
                         for author in data['authors']:
                             if author.get("name", "").split(" ")[-1] == paper["Author"].split(" ")[-1]:
                                 paper["AuthorID"] = author.get("authorId", "null")
-                                break
 
                         print(f"     [INFO] Processed authors for paper {paper['PaperID']}")
                 except aiohttp.ClientResponseError as e:
@@ -238,7 +236,6 @@ class ArxivScraper:
 
         print("    ✅ [INFO] Author details scraped successfully!")
         return self.papers
-
 
     async def get_amount_of_mentions(self) -> Optional[List[Dict]]:
         print("\n📍 Step 4: Using Scholar API to extract amount of mentions!")
@@ -327,68 +324,20 @@ class ArxivScraper:
         print("    ✅ [INFO] Last paper links scraped successfully!")
         return self.papers
 
-    async def download_pdf(self):
-        print("\n📍 Step 6: Downloading PDFs!")
-        ws = await _load_excel()
-        if not ws:
-            print("     [INFO] No Excel data found!")
-            return None
 
-        # Ensure the "downloads" directory exists
-        os.makedirs("downloads", exist_ok=True)
-
-        async with aiohttp.ClientSession() as session:
-            tasks = []
-            for row in ws.iter_rows(min_row=2, values_only=True):  # Iterate over all columns
-                paper_link = row[3]  # Assuming "LastPaperLink" is the 4th column (index 3)
-                if not paper_link or paper_link == "null":
-                    print(f"     ⚠️ [WARNING] No valid paper link for row: {row}")
-                    continue
-
-                # Sanitize the paper name for use as a filename
-                paper_name = paper_link.split("/")[-1].split("?")[0]  # Remove query parameters
-                paper_name = "".join(
-                    c for c in paper_name if c.isalnum() or c in ("-", "_", "."))  # Remove special chars
-                if not paper_name.endswith(".pdf"):
-                    paper_name += ".pdf"  # Ensure the file has a .pdf extension
-
-                # Create the full file path
-                file_path = os.path.join("downloads", paper_name)
-
-                # Add the download task to the list
-                tasks.append(self._download_single_pdf(session, paper_link, file_path))
-
-            # Run all download tasks concurrently
-            await asyncio.gather(*tasks)
-
-        print("    ✅ [INFO] PDF download process completed!")
-
-    async def _download_single_pdf(self, session, paper_link, file_path):
-        try:
-            async with session.get(paper_link) as response:
-                if response.status == 200:
-                    with open(file_path, 'wb') as f:
-                        f.write(await response.read())
-                    print(f"    ✅ [INFO] Downloaded: {file_path}")
-                else:
-                    print(f"    ❌ [ERROR] Failed to download {paper_link}: HTTP {response.status}")
-        except Exception as e:
-            print(f"    ❌ [ERROR] An error occurred while downloading {paper_link}: {e}")
-
-
-async def main():
-    from pprint import pprint
+async def async_main():
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
+        browser = await pw.chromium.launch(headless=False)
         context = await browser.new_context(viewport={'width': 1280, 'height': 720})
         page = await context.new_page()
 
         # Create the ArxivScraper instance and assign the open page
-        arxiv_scraper = ArxivScraper(keyword="photonic circuits", date_from="2022-01-01", date_to="2022-01-31")
+        arxiv_scraper = ArxivScraper(keyword=["photonic circuits"], OR=["quantum computing"], NOT=["quantum optics"],
+                                     date_from="2022-01-01", date_to="2022-01-03")
         arxiv_scraper.page = page
 
         # Step 1: Connect and search
-        await arxiv_scraper.connect_to_arxiv()
+        await arxiv_scraper.connect_to_arxiv_and_search()
 
         # Step 2: Get paper IDs (use max_pages_DEBUG_MODE=1 for testing)
         await arxiv_scraper.get_paper_ids(max_pages_DEBUG_MODE=1)
@@ -398,6 +347,9 @@ async def main():
 
         # Step 4: Get amount of mentions
         await arxiv_scraper.get_amount_of_mentions()
+
+        # Step 5: Get releated paper details
+        await arxiv_scraper.get_related_paper_details()
 
         # Save the scraped details to an Excel file
         _save_excel(arxiv_scraper.papers, arxiv_scraper.keyword)
@@ -465,4 +417,7 @@ def sync_main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(async_main())
+    sync_main()
+
+# TODO: get_author_details request optimization
