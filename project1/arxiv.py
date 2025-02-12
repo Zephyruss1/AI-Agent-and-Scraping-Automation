@@ -282,6 +282,99 @@ class ArxivScraper:
         print("    ✅ [INFO] Related papers scraped successfully!")
         return self.papers
 
+    async def get_related_paper_details(self):
+        print("\n📍 Step 5: Scraping related paper details!")
+        if not self.papers:
+            print("     [INFO] No author details found!")
+            return None
+
+        for row in self.papers:
+            author = row.get("Author")
+            if not author:
+                print(f"     [INFO] No author name found for row: {row}")
+                continue
+
+            try:
+                # Enter the author's name in the search box
+                search_box = self.page.locator('xpath=/html/body/header/div[2]/div[2]/form/div/div[1]/input')
+                await search_box.fill(author)
+                await search_box.press('Enter')
+                await asyncio.sleep(2)  # Wait for the search results to load
+
+                # Locate the latest paper
+                paper_entries = self.page.locator('xpath=//*[@id="main-container"]/div[2]/ol/li')
+                papers = await paper_entries.all()
+                if not papers:
+                    print(f"     [INFO] No papers found for author: {author}")
+                    continue
+
+                # Get the link of the first paper (latest paper)
+                try:
+                    paper_link = await papers[0].locator(
+                        'xpath=//p[@class="list-title is-inline-block"]/a'
+                    ).get_attribute("href")
+                    if paper_link:
+                        print(f"     🔗 Found paper link for {author}: {paper_link}")
+                        row["LastPaperLink"] = paper_link
+                    else:
+                        print(f"     ⚠️ [WARNING] No paper link found for {author}")
+                except Exception as e:
+                    print(f"     ❌ [ERROR] Failed to process the first paper entry for {author}: {e}")
+
+            except Exception as e:
+                print(f"     ❌ [ERROR] An error occurred while processing {author}: {e}")
+
+        print("    ✅ [INFO] Last paper links scraped successfully!")
+        return self.papers
+
+    async def download_pdf(self):
+        print("\n📍 Step 6: Downloading PDFs!")
+        ws = await _load_excel()
+        if not ws:
+            print("     [INFO] No Excel data found!")
+            return None
+
+        # Ensure the "downloads" directory exists
+        os.makedirs("downloads", exist_ok=True)
+
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for row in ws.iter_rows(min_row=2, values_only=True):  # Iterate over all columns
+                paper_link = row[3]  # Assuming "LastPaperLink" is the 4th column (index 3)
+                if not paper_link or paper_link == "null":
+                    print(f"     ⚠️ [WARNING] No valid paper link for row: {row}")
+                    continue
+
+                # Sanitize the paper name for use as a filename
+                paper_name = paper_link.split("/")[-1].split("?")[0]  # Remove query parameters
+                paper_name = "".join(
+                    c for c in paper_name if c.isalnum() or c in ("-", "_", "."))  # Remove special chars
+                if not paper_name.endswith(".pdf"):
+                    paper_name += ".pdf"  # Ensure the file has a .pdf extension
+
+                # Create the full file path
+                file_path = os.path.join("downloads", paper_name)
+
+                # Add the download task to the list
+                tasks.append(self._download_single_pdf(session, paper_link, file_path))
+
+            # Run all download tasks concurrently
+            await asyncio.gather(*tasks)
+
+        print("    ✅ [INFO] PDF download process completed!")
+
+    async def _download_single_pdf(self, session, paper_link, file_path):
+        try:
+            async with session.get(paper_link) as response:
+                if response.status == 200:
+                    with open(file_path, 'wb') as f:
+                        f.write(await response.read())
+                    print(f"    ✅ [INFO] Downloaded: {file_path}")
+                else:
+                    print(f"    ❌ [ERROR] Failed to download {paper_link}: HTTP {response.status}")
+        except Exception as e:
+            print(f"    ❌ [ERROR] An error occurred while downloading {paper_link}: {e}")
+
 
 async def main():
     from pprint import pprint
@@ -308,6 +401,68 @@ async def main():
 
         # Save the scraped details to an Excel file
         _save_excel(arxiv_scraper.papers, arxiv_scraper.keyword)
+
+
+class DownloadPDF:
+    def __init__(self, excel_path):
+        self.excel_path = excel_path
+
+    def _load_excel(self):
+        wb = load_workbook(self.excel_path)
+        ws = wb.active
+        return ws
+
+    def download_arxiv_pdf(self, pdf_url, save_dir="pdfs"):
+        if not pdf_url:
+            print(f"⚠️ [WARNING] Skipping invalid paper url: {pdf_url}")
+            return False
+
+        # ArXiv URL'sinin PDF versiyonuna dönüştürülmesi
+        if "arxiv.org/abs" in pdf_url:
+            pdf_url = pdf_url.replace("arxiv.org/abs", "arxiv.org/pdf") + ".pdf"
+
+        save_path = os.path.join(save_dir, f"{pdf_url.split('/')[-1]}")
+
+        os.makedirs(save_dir, exist_ok=True)
+
+        try:
+            req = urllib.request.Request(pdf_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req) as response:
+                content_type = response.headers.get("Content-Type")
+
+                if content_type != "application/pdf":
+                    print(f"❌ [ERROR] {pdf_url}: PDF can't be downloaded. Content-Type: {content_type}")
+                    return False
+
+                with open(save_path, "wb") as f:
+                    f.write(response.read())
+
+            print(f"✅ [INFO] {pdf_url}: PDF successfully downloaded -> {save_path}")
+            return True
+
+        except Exception as e:
+            print(f"❌ [ERROR] {pdf_url}: {e}")
+            return False
+
+    def start_download(self, max_workers=3):
+        ws = self._load_excel()
+        pdf_urls = [row[3].value for row in ws.iter_rows(min_row=2, max_col=4)]
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(self.download_arxiv_pdf, pdf_url): pdf_url for pdf_url in pdf_urls}
+
+            for future in concurrent.futures.as_completed(futures):
+                paper_id = futures[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"❌ [ERROR] {paper_id}: {e}")
+
+
+def sync_main():
+    pdf_downloader = DownloadPDF("arxiv_scraped_data.xlsx")
+    pdf_downloader.start_download()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
