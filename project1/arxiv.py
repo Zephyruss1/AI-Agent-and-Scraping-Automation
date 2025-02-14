@@ -1,12 +1,9 @@
-import os
 from typing import List, Dict, Optional
 from openpyxl import Workbook, load_workbook
 import asyncio
 from playwright.async_api import async_playwright
 import aiohttp
-import aiofiles
 import urllib.request
-import time
 import os
 import concurrent.futures
 
@@ -27,7 +24,6 @@ def _save_excel(author_list: List[Dict], keyword: List[str]) -> None:
     ws.append(["Author", "AuthorID", "PaperID", "LastPaperLink", "AmountOfMentions", "Keyword"])
 
     for author in author_list:
-        # Ensure we pass the details as a single tuple or list
         ws.append([
             author.get("Author", "null"),
             author.get("AuthorID", "null"),
@@ -107,11 +103,9 @@ class ArxivScraper:
             if self.NOT:
                 search_terms.extend(self.NOT if isinstance(self.NOT, list) else [self.NOT])
 
-
             # Fill the first search box (already present)
             search_box = self.page.locator(f'xpath=//*[@id="terms-0-term"]')
             await search_box.fill(search_terms[0])
-            print(f"     [INFO] Entered: {search_terms[0]}")
 
             # Handle additional search terms dynamically
             for i, term in enumerate(search_terms[1:], start=1):
@@ -133,9 +127,7 @@ class ArxivScraper:
                 await new_search_box.fill(term)
                 print(f"     [INFO] Entered: {term}")
 
-            # Press Enter on the last search box to submit
             await search_box.press('Enter')
-            await asyncio.sleep(2)
         except Exception as e:
             print(f"     ❌ [ERROR] An error occurred while searching: {e}")
 
@@ -245,7 +237,7 @@ class ArxivScraper:
 
         async with aiohttp.ClientSession() as session:
             for row_info in self.papers:
-                author_id = row_info.get("AuthorID")  # List of author IDs
+                author_id = row_info.get("AuthorID")
                 if author_id == "null":
                     print(f"    [INFO] No valid author name for {row_info['Author']}. Skipping.")
                     continue
@@ -355,6 +347,7 @@ async def async_main():
         _save_excel(arxiv_scraper.papers, arxiv_scraper.keyword)
 
 
+
 class DownloadPDF:
     def __init__(self, excel_path):
         self.excel_path = excel_path
@@ -362,9 +355,11 @@ class DownloadPDF:
     def _load_excel(self):
         wb = load_workbook(self.excel_path)
         ws = wb.active
-        return ws
+        if ws:
+            return ws
 
-    def download_arxiv_pdf(self, pdf_url, save_dir="pdfs"):
+
+    def download_arxiv_pdf(self, pdf_url: str, save_dir: str ="pdfs"):
         if not pdf_url:
             print(f"⚠️ [WARNING] Skipping invalid paper url: {pdf_url}")
             return False
@@ -386,10 +381,14 @@ class DownloadPDF:
                     print(f"❌ [ERROR] {pdf_url}: PDF can't be downloaded. Content-Type: {content_type}")
                     return False
 
+                if pdf_url.split("/")[-1] in os.listdir(save_dir):
+                    print(f"⚠️ [WARNING] {pdf_url}: PDF already exists in the directory.")
+                    return False
+
                 with open(save_path, "wb") as f:
                     f.write(response.read())
 
-            print(f"✅ [INFO] {pdf_url}: PDF successfully downloaded -> {save_path}")
+            print(f"    ✅ [INFO] {pdf_url}: PDF successfully downloaded -> {save_path}")
             return True
 
         except Exception as e:
@@ -397,18 +396,22 @@ class DownloadPDF:
             return False
 
     def start_download(self, max_workers=3):
+        print("\n📍 Step 6: Downloading PDFs!")
         ws = self._load_excel()
+        if not ws:
+            print("❌ [ERROR] Excel file not found!")
+            return
         pdf_urls = [row[3].value for row in ws.iter_rows(min_row=2, max_col=4)]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(self.download_arxiv_pdf, pdf_url): pdf_url for pdf_url in pdf_urls}
 
             for future in concurrent.futures.as_completed(futures):
-                paper_id = futures[future]
+                pdf_url = futures[future]
                 try:
                     future.result()
                 except Exception as e:
-                    print(f"❌ [ERROR] {paper_id}: {e}")
+                    print(f"❌ [ERROR] {pdf_url}: {e}")
 
 
 def sync_main():
@@ -418,6 +421,6 @@ def sync_main():
 
 if __name__ == "__main__":
     asyncio.run(async_main())
-    sync_main()
+    # sync_main()
 
 # TODO: get_author_details request optimization
