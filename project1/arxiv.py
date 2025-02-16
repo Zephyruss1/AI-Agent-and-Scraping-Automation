@@ -3,9 +3,6 @@ from openpyxl import Workbook, load_workbook
 import asyncio
 from playwright.async_api import async_playwright
 import aiohttp
-import urllib.request
-import os
-import concurrent.futures
 
 
 async def _load_excel():
@@ -252,7 +249,7 @@ class ArxivScraper:
 
                         if 'data' in data and data['data']:
                             amount_of_mentions = data['data']  # List of papers
-                            print(f"📄 {row_info['Author']} -> {len(amount_of_mentions)} papers found.")
+                            print(f"    📄 {row_info['Author']} -> {len(amount_of_mentions)} papers found.")
 
                             # Update the amount of mentions for the author
                             row_info["AmountOfMentions"] = len(amount_of_mentions)
@@ -318,21 +315,26 @@ class ArxivScraper:
 
 
 async def async_main():
+    proxy = {
+        "server": "brd.superproxy.io:33335",
+        "username": "brd-customer-hl_fc29e1f2-zone-isp_proxy1",
+        "password": "53b6d13ej50m"
+    }
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=False)
+        browser = await pw.chromium.launch(headless=True)
         context = await browser.new_context(viewport={'width': 1280, 'height': 720})
         page = await context.new_page()
 
         # Create the ArxivScraper instance and assign the open page
-        arxiv_scraper = ArxivScraper(keyword=["photonic circuits"], OR=["quantum computing"], NOT=["quantum optics"],
-                                     date_from="2022-01-01", date_to="2022-01-03")
+        arxiv_scraper = ArxivScraper(keyword=["photonic circuits"],
+                                     date_from="2022-01-01", date_to="2023-12-31")
         arxiv_scraper.page = page
 
         # Step 1: Connect and search
         await arxiv_scraper.connect_to_arxiv_and_search()
 
         # Step 2: Get paper IDs (use max_pages_DEBUG_MODE=1 for testing)
-        await arxiv_scraper.get_paper_ids(max_pages_DEBUG_MODE=1)
+        await arxiv_scraper.get_paper_ids() #max_pages_DEBUG_MODE=1
 
         # Step 3: Get author details
         await arxiv_scraper.get_author_details()
@@ -340,87 +342,18 @@ async def async_main():
         # Step 4: Get amount of mentions
         await arxiv_scraper.get_amount_of_mentions()
 
-        # Step 5: Get releated paper details
+        # Step 5: Get related paper details
         await arxiv_scraper.get_related_paper_details()
 
         # Save the scraped details to an Excel file
         _save_excel(arxiv_scraper.papers, arxiv_scraper.keyword)
 
 
-
-class DownloadPDF:
-    def __init__(self, excel_path):
-        self.excel_path = excel_path
-
-    def _load_excel(self):
-        wb = load_workbook(self.excel_path)
-        ws = wb.active
-        if ws:
-            return ws
-
-
-    def download_arxiv_pdf(self, pdf_url: str, save_dir: str ="pdfs"):
-        if not pdf_url:
-            print(f"⚠️ [WARNING] Skipping invalid paper url: {pdf_url}")
-            return False
-
-        # ArXiv URL'sinin PDF versiyonuna dönüştürülmesi
-        if "arxiv.org/abs" in pdf_url:
-            pdf_url = pdf_url.replace("arxiv.org/abs", "arxiv.org/pdf") + ".pdf"
-
-        save_path = os.path.join(save_dir, f"{pdf_url.split('/')[-1]}")
-
-        os.makedirs(save_dir, exist_ok=True)
-
-        try:
-            req = urllib.request.Request(pdf_url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req) as response:
-                content_type = response.headers.get("Content-Type")
-
-                if content_type != "application/pdf":
-                    print(f"❌ [ERROR] {pdf_url}: PDF can't be downloaded. Content-Type: {content_type}")
-                    return False
-
-                if pdf_url.split("/")[-1] in os.listdir(save_dir):
-                    print(f"⚠️ [WARNING] {pdf_url}: PDF already exists in the directory.")
-                    return False
-
-                with open(save_path, "wb") as f:
-                    f.write(response.read())
-
-            print(f"    ✅ [INFO] {pdf_url}: PDF successfully downloaded -> {save_path}")
-            return True
-
-        except Exception as e:
-            print(f"❌ [ERROR] {pdf_url}: {e}")
-            return False
-
-    def start_download(self, max_workers=3):
-        print("\n📍 Step 6: Downloading PDFs!")
-        ws = self._load_excel()
-        if not ws:
-            print("❌ [ERROR] Excel file not found!")
-            return
-        pdf_urls = [row[3].value for row in ws.iter_rows(min_row=2, max_col=4)]
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(self.download_arxiv_pdf, pdf_url): pdf_url for pdf_url in pdf_urls}
-
-            for future in concurrent.futures.as_completed(futures):
-                pdf_url = futures[future]
-                try:
-                    future.result()
-                except Exception as e:
-                    print(f"❌ [ERROR] {pdf_url}: {e}")
-
-
-def sync_main():
-    pdf_downloader = DownloadPDF("arxiv_scraped_data.xlsx")
-    pdf_downloader.start_download()
-
-
 if __name__ == "__main__":
     asyncio.run(async_main())
-    # sync_main()
 
 # TODO: get_author_details request optimization
+# TODO: Scraping author email if exists in paper details
+# TODO: Scraping related tags from paper details to filter author last paper
+
+#job title, email, organization
