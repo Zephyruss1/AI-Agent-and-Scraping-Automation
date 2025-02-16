@@ -54,7 +54,7 @@ class DownloadPDF:
             print(f"❌ [ERROR] {pdf_url}: {e}")
             return False
 
-    def start_download(self, max_workers=3):
+    def start_download(self, max_workers: int = 3, max_download_num: int = None):
         print("\n📍 Step 6: Downloading PDFs!")
         ws = self._load_excel()
         if not ws:
@@ -77,6 +77,8 @@ def sync_main():
     pdf_downloader = DownloadPDF("arxiv_scraped_data.xlsx")
     pdf_downloader.start_download()
 
+if __name__ == "__main__":
+    sync_main()
 
 class ChatGPTPlaywright:
     def __init__(self, profile_path: Optional[str] = None):
@@ -86,15 +88,17 @@ class ChatGPTPlaywright:
         self.playwright = await async_playwright().start()
         self.browser = await self._launch_browser()
         self.page = await self.browser.new_page()
-        await self.page.goto("https://chat.openai.com/")
+        await self.page.goto("https://www.perplexity.ai/")
+        time.sleep(5)
+        await self._interact_with_interface()
+        await self.page.screenshot(path="perplexity.png")
         time.sleep(10)
-        await self.page.screenshot(path="chat_gpt.png")
 
     async def _launch_browser(self):
         proxy = {
-        "server": "brd.superproxy.io:33335",
-        "username": "brd-customer-hl_fc29e1f2-zone-semanticscholar",
-        "password": "p8tgqocdlqav"
+            "server": "brd.superproxy.io:33335",
+            "username": "brd-customer-hl_fc29e1f2-zone-semanticscholar",
+            "password": "p8tgqocdlqav"
         }
         # Configure browser launch options
         browser_args = [
@@ -110,24 +114,37 @@ class ChatGPTPlaywright:
 
         browser = await self.playwright.chromium.launch_persistent_context(
             user_data_dir=abs_profile_path if self.profile_path else None,
-            headless=True,
+            headless=False,
             args=browser_args,
             proxy=proxy,
         )
-
         return browser
+
+    async def _interact_with_interface(self):
+        await self.page.click('xpath=//*[@id="__next"]/main/div/div/div[1]/div/div/div/div[4]/div/button[2]')
+        time.sleep(5)
+        await self.page.click('xpath=//*[@id="__next"]/div[2]/div[2]/div/div/div/div[2]/div[2]/div[2]'
+                              '/div/div[1]/button[1]')
+        time.sleep(5)
 
     async def close(self):
         """Close the browser and stop Playwright."""
-        await self.browser.close()
-        await self.playwright.stop()
+        if hasattr(self, "browser") and self.browser:
+            await self.browser.close()
+        if hasattr(self, "playwright") and self.playwright:
+            await self.playwright.stop()
 
-if __name__ == "__main__":
-    profile_path = r"/root/arxiv-and-scholar-scraping/project1/clonedUserData"
 
-    chat_gpt = ChatGPTPlaywright()
-    asyncio.run(chat_gpt.start())
+async def main():
+    profile_path = r"C:\clonedUserData"
+
+    chat_gpt = ChatGPTPlaywright(profile_path=profile_path)
+    await chat_gpt.start()
     try:
         print("ChatGPT page loaded successfully!")
     finally:
-        asyncio.run(chat_gpt.close())
+        await chat_gpt.close()
+
+
+# if __name__ == "__main__":
+#     asyncio.run(main())
