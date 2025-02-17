@@ -11,3 +11,5 @@ wheels/
 # Virtual environments
 .venv
 clonedUserData/
+pdfs/
+gpt.py
