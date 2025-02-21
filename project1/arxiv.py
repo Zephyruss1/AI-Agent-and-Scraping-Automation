@@ -327,7 +327,7 @@ async def async_main():
 
         # Create the ArxivScraper instance and assign the open page
         arxiv_scraper = ArxivScraper(keyword=["photonic circuits"],
-                                     date_from="2022-01-01", date_to="2023-12-31")
+                                     date_from="2022-01-01", date_to="2023-01-07")
         arxiv_scraper.page = page
 
         # Step 1: Connect and search
@@ -351,9 +351,3 @@ async def async_main():
 
 if __name__ == "__main__":
     asyncio.run(async_main())
-
-# TODO: get_author_details request optimization
-# TODO: Scraping author email if exists in paper details
-# TODO: Scraping related tags from paper details to filter author last paper
-
-#job title, email, organization
