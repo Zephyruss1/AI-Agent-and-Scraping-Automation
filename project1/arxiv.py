@@ -321,7 +321,24 @@ async def async_main():
         "password": "53b6d13ej50m"
     }
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
+        args=[
+        '--no-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--disable-background-timer-throttling',
+        '--disable-popup-blocking',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-window-activation',
+        '--disable-focus-on-load',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--no-startup-window',
+        '--window-position=0,0',
+        # '--window-size=1280,1000',
+        ]
+
+        browser = await pw.chromium.launch(headless=True, args=args)
         context = await browser.new_context(viewport={'width': 1280, 'height': 720})
         page = await context.new_page()
 
