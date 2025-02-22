@@ -91,6 +91,7 @@ class LoadPDF:
     def extract_text_from_pdf(self) -> str:
         """Extract text from a PDF file."""
         list_pdf_files = self.list_pdf_files()
+        print("    ✅ [INFO] Listing PDF files in the directory.")
         for pdf_file in list_pdf_files:
             text = ""
             with pdfplumber.open(f"{self.pdf_dir}{pdf_file}") as pdf:
@@ -104,6 +105,9 @@ class LoadPDF:
         print("    ✅ [INFO] Listing PDF files in the directory.")
         return [file for file in os.listdir(self.pdf_dir) if file.endswith(".pdf")]
 
+    def __len__(self) -> int:
+        """Return the number of PDF files."""
+        return len(self.list_pdf_files())
 
 @dataclass(frozen=True)
 class ChatGPTConfig:
