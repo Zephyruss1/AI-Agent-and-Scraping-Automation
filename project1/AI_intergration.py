@@ -206,8 +206,11 @@ class WebSearch:
             )
             response.raise_for_status()
 
-            response_json = response.json() # TODO: If we find there more than one email.
-            return response_json["choices"][0]["message"]["content"]
+            response_json = response.json()
+            list_of_emails = response_json["choices"][0]["message"]["content"].split("\n")
+            if list_of_emails:
+                print(f"    ✅ [INFO] Email addresses listed: {list_of_emails}")
+                return list_of_emails
 
         except requests.exceptions.RequestException as e:
             print(f"Error: API request is failed - {e}")
