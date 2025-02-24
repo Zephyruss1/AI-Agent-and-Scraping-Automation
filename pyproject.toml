@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.11.12",
+    "browser-use>=0.1.39",
     "notebook>=7.3.2",
     "openai>=1.63.0",
     "openpyxl>=3.1.5",
