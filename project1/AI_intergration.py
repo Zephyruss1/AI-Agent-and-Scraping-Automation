@@ -226,53 +226,57 @@ class WebSearch:
 
 class FindSimilarity:
     """Find similarity between the author names and emails."""
-    @staticmethod
-    def preprocess_emails(email_list: List) -> Optional[str]:
-        """Preprocess the email address."""
-        return [email.split("@")[0].lower() for email in email_list]
-    
+    def preprocess_emails(self, email_list: List) -> Optional[str]:
+        """Preprocess the email address to extract email author name."""
+        return " ".join([email.split("@")[0].lower() for email in email_list])
+
     def find_email_author_and_save(self, list_of_emails: List[str]) -> object:
         """Find the email address and author name using Cosine Similarity."""
         print("\n📍 Step 9: Finding Similarity and Saving to Excel!")
-        wb, ws = _load_excel("arxiv_scraped_data.xlsx")
+        wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
         headers = [str(cell.value).strip().lower() if cell.value else None for cell in ws[1]]
-    
+
         if "email" in headers:
             email_column = headers.index("email") + 1
         else:
             email_column = ws.max_column + 1
             ws.cell(row=1, column=email_column, value="Email")
-        
-        for preprocessed_email in list_of_emails:
-            print(f"Processing email: {preprocessed_email}")
-            doc1_name = preprocessed_email
-            match_found = False
-    
-            if preprocessed_email == "None":
+
+        for email in list_of_emails:
+            if email == "None" or email.startswith("protected email")\
+                or email.__contains__("*"):
                 continue
-    
+            
+            print(f"Processing email: {email}")
+            doc1 = self.preprocess_emails([email])
+            match_found = False
+
             for row_index, row in enumerate(ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True), start=2):
                 author_name = row[0]
                 if not author_name:
                     continue
-    
-                doc2 = str(author_name).lower()
-    
+
+                doc2 = str(author_name)
+
                 vectorizer = TfidfVectorizer(analyzer='char', ngram_range=(1, 2), lowercase=True)
-                tfidf_matrix = vectorizer.fit_transform([doc1_name, doc2])
-    
+                tfidf_matrix = vectorizer.fit_transform([doc1, doc2])
+
                 cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
-    
+
                 if cosine_sim[0][0] > 0.6:
                     print(f"Match Found: {author_name} | {cosine_sim[0][0]}")
-                    ws.cell(row=row_index, column=email_column, value=preprocessed_email)
+                    current_email = ws.cell(row=row_index, column=email_column).value
+                    if current_email:
+                        new_email = f"{current_email}, {email}"
+                        ws.cell(row=row_index, column=email_column, value=new_email)
+                    else:
+                        ws.cell(row=row_index, column=email_column, value=email)
                     match_found = True
-                    break
-    
+
             if not match_found:
                 last_row = ws.max_row + 1
-                ws.cell(row=last_row, column=email_column, value=preprocessed_email)
-    
+                ws.cell(row=last_row, column=email_column, value=email)
+
         return wb.save("arxiv_scraped_data_backup.xlsx")
 
 
