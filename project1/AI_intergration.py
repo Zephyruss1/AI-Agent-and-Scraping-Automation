@@ -9,7 +9,6 @@ from typing import Optional, List
 import concurrent.futures
 import urllib.request
 from openai import OpenAI
-from collections import deque
 from pydantic import BaseModel
 import requests
 
@@ -22,56 +21,65 @@ def _load_excel(file_name: str) -> object:
     ws = wb.active
     return wb, ws
 
-# def _save_excel(file: object, file_name: str) -> object:
-#     """Save the excel file."""
-#     return file.save(filename=file_name)
-
 
 class DownloadPDF:
     def __init__(self, excel_path):
         self.excel_path = excel_path
-   
-    def download_arxiv_pdf(self, pdf_url: str, save_dir: str ="pdfs") -> bool:
-        """Download PDF from the given URL."""
+        self.proxy = {"http": "http://brd-customer-hl_fc29e1f2-zone-semanticscholar:p8tgqocdlqav@brd.superproxy.io:33335",
+                      "https": "https://brd-customer-hl_fc29e1f2-zone-semanticscholar:p8tgqocdlqav@brd.superproxy.io:33335",}
+
+    def download_arxiv_pdf(self, pdf_url: str, save_dir: str = "pdfs") -> bool:
+        """Download PDF from the given URL using requests."""
         if not pdf_url:
             print(f"    ⚠️ [WARNING] Skipping invalid paper url: {pdf_url}")
             return False
-        
+
+        # Convert abstract URL to PDF URL
         if "arxiv.org/abs" in pdf_url:
             pdf_url = pdf_url.replace("arxiv.org/abs", "arxiv.org/pdf") + ".pdf"
-        
+
         save_path = os.path.join(save_dir, f"{pdf_url.split('/')[-1]}")
         os.makedirs(save_dir, exist_ok=True)
-        
+
         try:
-            req = urllib.request.Request(pdf_url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req) as response:
-                content_type = response.headers.get("Content-Type")
-                if content_type != "application/pdf":
-                    print(f"    ❌ [ERROR] {pdf_url}: PDF can't be downloaded. Content-Type: {content_type}")
-                    return False
-                if pdf_url.split("/")[-1] in os.listdir(save_dir):
-                    print(f"    ⚠️ [WARNING] {pdf_url}: PDF already exists in the directory.")
-                    return False
-                with open(save_path, "wb") as f:
-                    f.write(response.read())
+            # Send request with SSL verification disabled (for now)
+            response = requests.get(pdf_url, headers={"User-Agent": "Mozilla/5.0"},
+            proxies=self.proxy)
+
+            # Check if response is a valid PDF
+            content_type = response.headers.get("Content-Type", "").lower()
+            if "application/pdf" not in content_type:
+                print(f"    ❌ [ERROR] {pdf_url}: PDF can't be downloaded. Content-Type: {content_type}")
+                return False
+
+            # Skip if file already exists
+            if os.path.exists(save_path):
+                print(f"    ⚠️ [WARNING] {pdf_url}: PDF already exists in {save_dir}")
+                return False
+
+            # Save the PDF
+            with open(save_path, "wb") as f:
+                f.write(response.content)
+
             print(f"    ✅ [INFO] {pdf_url}: PDF successfully downloaded -> {save_path}")
             return True
-        
-        except Exception as e:
-            print(f"    ❌ [ERROR] {pdf_url}: {e}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"    ❌ [ERROR] {pdf_url}: Request error - {str(e)}")
             return False
-    
-    def start_download(self, max_workers=3) -> None:
-        """Start downloading PDFs."""
+
+    def start_download(self, max_workers: int = 3) -> None:
+        """Start downloading PDFs with rate limiting consideration."""
         print("\n📍 Step 6: Downloading PDFs!")
-        ws = _load_excel()
-        
+        wb, ws = _load_excel(file_name=self.excel_path)
+
         if not ws:
             print("     ❌ [ERROR] Excel file not found!")
             return
-        
+
         pdf_urls = [row[3].value for row in ws.iter_rows(min_row=2, max_col=4)]
+        print(f"    ℹ️ [INFO] Found {len(pdf_urls)} URLs to download.")
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(self.download_arxiv_pdf, pdf_url): pdf_url for pdf_url in pdf_urls}
             for future in concurrent.futures.as_completed(futures):
@@ -79,8 +87,7 @@ class DownloadPDF:
                 try:
                     future.result()
                 except Exception as e:
-                    print(f"    ❌ [ERROR] {pdf_url}: {e}")
-
+                    print(f"    ❌ [ERROR] {pdf_url}: Thread error - {e}")
 
 class LoadPDF:
     """Load PDFs and extract text from them."""
@@ -102,7 +109,6 @@ class LoadPDF:
     
     def list_pdf_files(self) -> List[str]:
         """List all PDF files in the directory."""
-        print("    ✅ [INFO] Listing PDF files in the directory.")
         return [file for file in os.listdir(self.pdf_dir) if file.endswith(".pdf")]
 
     def __len__(self) -> int:
@@ -174,9 +180,10 @@ class AnswerFormat(BaseModel):
 
 
 class WebSearch:
-    def __init__(self, config: PerplexityConfig = PerplexityConfig()) -> None:
+    def __init__(self, name: str, config: PerplexityConfig = PerplexityConfig()) -> None:
         """Implement PerplexityConfig to WebSearch."""
         self.config = config
+        self.author_name = name
 
     def perplexity_search(self) -> str:
         """Search for email addresses for the provided author name."""
@@ -193,35 +200,59 @@ class WebSearch:
                         "Output only the emails or 'None'—no additional explanations."
                     ),
                 },
-                {"role": "user", "content": "Kaylx Jang '@' lightwave research academy"},
+                {"role": "user", "content": f"{self.author_name} email adress"},
             ],
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"schema": AnswerFormat.model_json_schema()},
             },
-        },
+        }
 
+        response = requests.post(self.config.url, headers=self.config.get_headers(), json=payload)
+
+        if response.status_code == 200:
+            try:
+                response_json = response.json()
+                print(response_json["choices"][0]["message"]["content"])
+                list_of_emails = response_json["choices"][0]["message"]["content"].split("\n")
+                if list_of_emails:
+                    print(f"    ✅ [INFO] Email addresses listed: {list_of_emails}")
+                    return list_of_emails
+
+            except requests.JSONDecodeError:
+                print("Error: Response content is not valid JSON")
+        else:
+            print(f"Error: Received status code {response.status_code}")
+
+    def browser_use(self) -> str:
+        """Search for email addresses using the browser-use."""
         try:
-            response = requests.post(
-                self.config.url,
-                headers=self.config.get_headers(),
-                json=payload,
-                timeout=10
+            from langchain_openai import ChatOpenAI
+            from browser_use import Agent
+            from browser_use import BrowserConfig, Browser
+            import asyncio
+        except ImportError:
+            raise ImportError("Please install the required packages to run this function.")
+        
+        browser = Browser(
+            config=BrowserConfig(
+                headless=True,
+                disable_security=True
             )
-            response.raise_for_status()
+        )
 
-            response_json = response.json()
-            list_of_emails = response_json["choices"][0]["message"]["content"].split("\n")
-            if list_of_emails:
-                print(f"    ✅ [INFO] Email addresses listed: {list_of_emails}")
-                return list_of_emails
-
-        except requests.exceptions.RequestException as e:
-            print(f"Error: API request is failed - {e}")
-            return "None"
-        except (KeyError, IndexError, ValueError) as e:
-            print(f"Error: Not Answer - {e}")
-            return "None"
+        agent = Agent(
+            task=f"""
+            1. Go to Google.com.
+            2. Search '{self.author_name} email address' and enter.
+            3. Output only the emails or 'None'—no additional explanations.
+            """,
+            llm=ChatOpenAI(model="gpt-4o"),
+            browser=browser,
+        )
+        loop = asyncio.get_event_loop()
+        result = loop.run_until_complete(agent.run())
+        return result.final_result().split("\n")
 
 
 class FindSimilarity:
@@ -280,34 +311,47 @@ class FindSimilarity:
         return wb.save("arxiv_scraped_data_backup.xlsx")
 
 
-def main():
+def extract_and_search():
     # Step 1: Download PDFs
     # pdf_downloader = DownloadPDF("arxiv_scraped_data.xlsx")
     # pdf_downloader.start_download()
+    wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
 
     # Step 2: Load PDFs and extract text
     pdf_loader = LoadPDF()
+    pdf_length = pdf_loader.__len__()
     pdf_texts = pdf_loader.extract_text_from_pdf()
 
-    # Step 3: Extract email addresses from the text
-    email_extractor = ExtractEmails()
-    list_of_emails = email_extractor.chatgpt_response(pdf_texts)
-    if not list_of_emails:
-        print("     ⚠️ [WARNING] No email addresses found in the text.\nTrying to search on Web...")
+    for i in range(pdf_length):
+        print(f"     [INFO] Extracted text from PDF {i+1}")
+
+        # Step 3: Extract email addresses from the text
+        email_extractor = ExtractEmails()
+        list_of_emails = email_extractor.chatgpt_response(pdf_texts)
         
-        # Step 4: Search for email addresses on the web
-        web_search = WebSearch()
-        email_address = web_search.perplexity_search()
-        if "None" in email_address:
-            print("     ❌ [ERROR] No email addresses found on the web.")
-            return
-        else:
-            list_of_emails = [email_address]
-    list_of_emails = FindSimilarity.preprocess_emails(list_of_emails)
-    
-    # Step 5: Find similarity between the author names and emails
-    similarity_finder = FindSimilarity()
-    similarity_finder.find_email_author_and_save(list_of_emails)
+        if list_of_emails == ["None"] or not list_of_emails:
+            print("     ⚠️ [WARNING] No email addresses found in the text.\nTrying to search on Web...")
+            
+            # Step 4: Search for email addresses on the web
+            web_search = WebSearch()
+            email_address = web_search.perplexity_search()
+            if "None" in email_address:
+                print("     ❌ [ERROR] No email addresses found on the web.")
+                return
+            else:
+                list_of_emails = [email_address]
+
+def fill_empty_emails_with_search():
+    wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
+    for i in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
+        author_name = i[0]
+        web_search = WebSearch(name=str(author_name))
+        list_of_emails = web_search.perplexity_search()
+        
+        # Step 5: Find similarity between the author names and emails
+        similarity_finder = FindSimilarity()
+        similarity_finder.find_email_author_and_save(list_of_emails)
+        print("-----" * 15)
 
 if __name__ == "__main__":
-    main()
+    extract_and_search()
