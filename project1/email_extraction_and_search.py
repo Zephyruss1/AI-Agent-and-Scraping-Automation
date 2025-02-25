@@ -345,10 +345,16 @@ def fill_empty_emails_with_search():
     wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
     for i in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
         author_name = i[0]
+        email_row = i[6]
+        if email_row is not None:
+            print(f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping...")
+            continue
+
+        # Step 5: Search for email addresses using the browser-use
         web_search = WebSearch(name=str(author_name))
         list_of_emails = web_search.perplexity_search()
         
-        # Step 5: Find similarity between the author names and emails
+        # Step 6: Find similarity between the author names and emails
         similarity_finder = FindSimilarity()
         similarity_finder.find_email_author_and_save(list_of_emails)
         print("-----" * 15)
