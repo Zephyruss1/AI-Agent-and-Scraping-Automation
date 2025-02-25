@@ -245,7 +245,7 @@ class WebSearch:
         agent = Agent(
             task=f"""
             1. Go to Google.com.
-            2. Search '{self.author_name} email address' and enter.
+            2. Search '{self.author_name} email address and enter.
             3. Output only the emails or 'None'—no additional explanations.
             """,
             llm=ChatOpenAI(model="gpt-4o"),
@@ -312,7 +312,7 @@ class FindSimilarity:
         return wb.save("arxiv_scraped_data_backup.xlsx")
 
 
-def extract_and_search():
+def extract():
     # Step 1: Download PDFs
     # pdf_downloader = DownloadPDF("arxiv_scraped_data.xlsx")
     # pdf_downloader.start_download()
@@ -336,8 +336,8 @@ def extract_and_search():
 
 def fill_empty_emails_with_search():
     wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
-
-    # WebSearch usin Perplexity
+    
+    # WebSearch using Perplexity
     for i in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
         author_name = i[0]
         email_row = i[6]
@@ -354,23 +354,27 @@ def fill_empty_emails_with_search():
         similarity_finder.find_email_author_and_save(list_of_emails)
         print("-----" * 15)
 
-    # WebSearch using Browser-Use
-    for i in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
-        author_name = i[0]
-        email_row = i[6]
-        if email_row is not None:
-            print(f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping...")
-            continue
-    
-        # Step 5: Search for email addresses using the browser-use
-        web_search = WebSearch(name=str(author_name))
-        list_of_emails = web_search.browser_use()
+    ask_msg = input("Do you want to fill empty emails row again with browser-use? [y/n]: ")
+    if ask_msg.lower() == "y":
+        # WebSearch using Browser-Use
+        for i in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
+            author_name = i[0]
+            email_row = i[6]
+            if email_row is not None:
+                print(f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping...")
+                continue
         
-        # Step 6: Find similarity between the author names and emails
-        similarity_finder = FindSimilarity()
-        similarity_finder.find_email_author_and_save(list_of_emails)
-        print("-----" * 15)
+            # Step 5: Search for email addresses using the browser-use
+            web_search = WebSearch(name=str(author_name))
+            list_of_emails = web_search.browser_use()
+            
+            # Step 6: Find similarity between the author names and emails
+            similarity_finder = FindSimilarity()
+            similarity_finder.find_email_author_and_save(list_of_emails)
+            print("-----" * 15)
+    else:
+        print("     [INFO] Skipping browser-use search for email addresses.")
 
 if __name__ == "__main__":
-    # extract_and_search()
+    # extract()
     fill_empty_emails_with_search()
