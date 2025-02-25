@@ -11,6 +11,7 @@ import urllib.request
 from openai import OpenAI
 from pydantic import BaseModel
 import requests
+import subprocess
 
 load_dotenv()
 
@@ -25,8 +26,11 @@ def _load_excel(file_name: str) -> object:
 class DownloadPDF:
     def __init__(self, excel_path):
         self.excel_path = excel_path
-        self.proxy = {"http": "http://brd-customer-hl_fc29e1f2-zone-semanticscholar:p8tgqocdlqav@brd.superproxy.io:33335",
-                      "https": "https://brd-customer-hl_fc29e1f2-zone-semanticscholar:p8tgqocdlqav@brd.superproxy.io:33335",}
+        self.proxy = {
+            "account_id": "hl_fc29e1f2",
+            "zone_name": "semanticscholar",
+            "password": "p8tgqocdlqav",
+            }
 
     def download_arxiv_pdf(self, pdf_url: str, save_dir: str = "pdfs") -> bool:
         """Download PDF from the given URL using requests."""
@@ -41,25 +45,27 @@ class DownloadPDF:
         save_path = os.path.join(save_dir, f"{pdf_url.split('/')[-1]}")
         os.makedirs(save_dir, exist_ok=True)
 
+        if os.path.exists(save_path):
+            print(f"    ⚠️ [WARNING] {pdf_url}: PDF already exists.")
+            return True
+
         try:
-            # Send request with SSL verification disabled (for now)
-            response = requests.get(pdf_url, headers={"User-Agent": "Mozilla/5.0"},
-            proxies=self.proxy)
+            proxy_url =  "brd.superproxy.io:33335"
+            proxy_auth = f"brd-customer-{self.proxy['account_id']}-zone-{self.proxy['zone_name']}:{self.proxy['password']}"
 
-            # Check if response is a valid PDF
-            content_type = response.headers.get("Content-Type", "").lower()
-            if "application/pdf" not in content_type:
-                print(f"    ❌ [ERROR] {pdf_url}: PDF can't be downloaded. Content-Type: {content_type}")
+            cmd = [
+                "curl",
+                "--proxy", proxy_url,
+                "--proxy-user", proxy_auth,
+                "-k", 
+                pdf_url,
+                "-o", save_path
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"    ❌ [ERROR] {pdf_url}: PDF can't be downloaded. Error: {result.stderr}")
                 return False
-
-            # Skip if file already exists
-            if os.path.exists(save_path):
-                print(f"    ⚠️ [WARNING] {pdf_url}: PDF already exists in {save_dir}")
-                return False
-
-            # Save the PDF
-            with open(save_path, "wb") as f:
-                f.write(response.content)
 
             print(f"    ✅ [INFO] {pdf_url}: PDF successfully downloaded -> {save_path}")
             return True
