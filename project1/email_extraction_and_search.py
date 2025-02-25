@@ -226,6 +226,7 @@ class WebSearch:
 
     def browser_use(self) -> str:
         """Search for email addresses using the browser-use."""
+        print("\n📍 Step 8: [Browser-Use] Extracting Email Addresses!")
         try:
             from langchain_openai import ChatOpenAI
             from browser_use import Agent
@@ -274,7 +275,7 @@ class FindSimilarity:
             ws.cell(row=1, column=email_column, value="Email")
 
         for email in list_of_emails:
-            if email == "None" or email.startswith("protected email")\
+            if email.__contains__("None") or email.startswith("protected")\
                 or email.__contains__("*"):
                 continue
             
@@ -315,7 +316,6 @@ def extract_and_search():
     # Step 1: Download PDFs
     # pdf_downloader = DownloadPDF("arxiv_scraped_data.xlsx")
     # pdf_downloader.start_download()
-    wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
 
     # Step 2: Load PDFs and extract text
     pdf_loader = LoadPDF()
@@ -329,20 +329,15 @@ def extract_and_search():
         email_extractor = ExtractEmails()
         list_of_emails = email_extractor.chatgpt_response(pdf_texts)
         
-        if list_of_emails == ["None"] or not list_of_emails:
-            print("     ⚠️ [WARNING] No email addresses found in the text.\nTrying to search on Web...")
-            
-            # Step 4: Search for email addresses on the web
-            web_search = WebSearch()
-            email_address = web_search.perplexity_search()
-            if "None" in email_address:
-                print("     ❌ [ERROR] No email addresses found on the web.")
-                return
-            else:
-                list_of_emails = [email_address]
+        # Step 4: Find similarity between the author names and emails
+        similarity_finder = FindSimilarity()
+        similarity_finder.find_email_author_and_save(list_of_emails)
+        print("-----" * 15)
 
 def fill_empty_emails_with_search():
     wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
+
+    # WebSearch usin Perplexity
     for i in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
         author_name = i[0]
         email_row = i[6]
@@ -359,5 +354,23 @@ def fill_empty_emails_with_search():
         similarity_finder.find_email_author_and_save(list_of_emails)
         print("-----" * 15)
 
+    # WebSearch using Browser-Use
+    for i in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
+        author_name = i[0]
+        email_row = i[6]
+        if email_row is not None:
+            print(f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping...")
+            continue
+    
+        # Step 5: Search for email addresses using the browser-use
+        web_search = WebSearch(name=str(author_name))
+        list_of_emails = web_search.browser_use()
+        
+        # Step 6: Find similarity between the author names and emails
+        similarity_finder = FindSimilarity()
+        similarity_finder.find_email_author_and_save(list_of_emails)
+        print("-----" * 15)
+
 if __name__ == "__main__":
-    extract_and_search()
+    # extract_and_search()
+    fill_empty_emails_with_search()
