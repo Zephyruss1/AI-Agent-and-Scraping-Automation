@@ -7,7 +7,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 from openpyxl import load_workbook
 from typing import Optional, List
 import concurrent.futures
-import urllib.request
 from openai import OpenAI
 from pydantic import BaseModel
 import requests
@@ -233,6 +232,7 @@ class WebSearch:
     def browser_use(self) -> str:
         """Search for email addresses using the browser-use."""
         print("\n📍 Step 8: [Browser-Use] Extracting Email Addresses!")
+        
         try:
             from langchain_openai import ChatOpenAI
             from browser_use import Agent
@@ -320,25 +320,25 @@ class FindSimilarity:
 
 def extract():
     # Step 1: Download PDFs
-    # pdf_downloader = DownloadPDF("arxiv_scraped_data.xlsx")
-    # pdf_downloader.start_download()
+    pdf_downloader = DownloadPDF("arxiv_scraped_data.xlsx")
+    pdf_downloader.start_download()
 
-    # Step 2: Load PDFs and extract text
-    pdf_loader = LoadPDF()
-    pdf_length = pdf_loader.__len__()
-    pdf_texts = pdf_loader.extract_text_from_pdf()
+    # # Step 2: Load PDFs and extract text
+    # pdf_loader = LoadPDF()
+    # pdf_length = pdf_loader.__len__()
+    # pdf_texts = pdf_loader.extract_text_from_pdf()
 
-    for i in range(pdf_length):
-        print(f"     [INFO] Extracted text from PDF {i+1}")
+    # for i in range(pdf_length):
+    #     print(f"     [INFO] Extracted text from PDF {i+1}")
 
-        # Step 3: Extract email addresses from the text
-        email_extractor = ExtractEmails()
-        list_of_emails = email_extractor.chatgpt_response(pdf_texts)
+    #     # Step 3: Extract email addresses from the text
+    #     email_extractor = ExtractEmails()
+    #     list_of_emails = email_extractor.chatgpt_response(pdf_texts)
         
-        # Step 4: Find similarity between the author names and emails
-        similarity_finder = FindSimilarity()
-        similarity_finder.find_email_author_and_save(list_of_emails)
-        print("-----" * 15)
+    #     # Step 4: Find similarity between the author names and emails
+    #     similarity_finder = FindSimilarity()
+    #     similarity_finder.find_email_author_and_save(list_of_emails)
+    #     print("-----" * 15)
 
 def fill_empty_emails_with_search():
     wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
@@ -386,5 +386,5 @@ def fill_empty_emails_with_search():
         print("     [INFO] Skipping browser-use search for email addresses.")
 
 if __name__ == "__main__":
-    # extract()
-    fill_empty_emails_with_search()
+    extract()
+    # fill_empty_emails_with_search()
