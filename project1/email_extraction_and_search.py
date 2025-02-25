@@ -337,10 +337,14 @@ def extract():
 def fill_empty_emails_with_search():
     wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
     
+    headers = [cell.value for cell in ws[1]]
+    if 'emails' not in headers:
+        ws.cell(row=1, column=7, value='emails')
+    
     # WebSearch using Perplexity
-    for i in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
-        author_name = i[0]
-        email_row = i[6]
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
+        author_name = row[0]
+        email_row = row[6] if len(row) > 6 else None
         if email_row is not None:
             print(f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping...")
             continue
@@ -357,9 +361,9 @@ def fill_empty_emails_with_search():
     ask_msg = input("Do you want to fill empty emails row again with browser-use? [y/n]: ")
     if ask_msg.lower() == "y":
         # WebSearch using Browser-Use
-        for i in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
-            author_name = i[0]
-            email_row = i[6]
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
+            author_name = row[0]
+            email_row = row[6] if len(row) > 6 else None
             if email_row is not None:
                 print(f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping...")
                 continue
