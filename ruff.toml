@@ -1,5 +1,10 @@
 # Ruff configuration
 
+# Global settings
+line-length = 88  # Same as Black
+target-version = "py311"  # Target Python 3.11
+
+[lint]
 # Enable flake8-bugbear (`B`) rules.
 select = ["E", "F", "B", "I"]
 
@@ -16,14 +21,16 @@ exclude = [
     ".venv",
 ]
 
-# Same as Black.
-line-length = 88
-
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-# Target Python 3.10.
-target-version = "py310"
+# Enable auto-fixing imports and sorting
+[lint.isort]
+known-first-party = ["arxiv_project"]  # Replace with your package name
+
+# Rules configuration
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
 
 [format]
 # Like Black, use double quotes for strings.
@@ -34,11 +41,3 @@ indent-style = "space"
 
 # Like Black, respect magic trailing commas.
 skip-magic-trailing-comma = false
-
-# Enable auto-fixing imports and sorting
-[lint.isort]
-known-first-party = ["arxiv_project"]  # Replace with your package name
-
-# Rules configuration
-[lint.flake8-bugbear]
-extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
