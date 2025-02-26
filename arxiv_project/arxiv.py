@@ -128,6 +128,29 @@ class ArxivScraper:
         except Exception as e:
             print(f"     ❌ [ERROR] An error occurred while searching: {e}")
 
+    # async def cosine_similarity(self, references: str) -> bool:
+    #     print("DEBUG: Using cosine similarity to find related papers...")
+    #     match_found = False
+    #     try:
+    #         from sklearn.feature_extraction.text import TfidfVectorizer
+    #         from sklearn.metrics.pairwise import cosine_similarity
+    #     except ImportError:
+    #         print("     ❌ [ERROR] Please install scikit-learn to use this feature.")
+    #         return False
+    #     vectorizer = TfidfVectorizer(analyzer='char', ngram_range=(1, 2), lowercase=True)
+    #     tfidf_matrix = vectorizer.fit_transform([references, " ".join(self.keyword)])
+
+    #     cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
+    #     print(f'     [INFO] References: {references} | {" ".join(self.keyword)}')
+    #     if cosine_sim[0][0] > 0.4:
+    #         match_found = True
+    #     if match_found:
+    #         print(f"     [INFO] Cosine similarity: {cosine_sim[0][0]}")
+    #         return True
+    #     else:
+    #         print(f"     [INFO] Cosine similarity: {cosine_sim[0][0]}")
+    #         return False
+
     async def get_paper_ids(self, max_pages_DEBUG_MODE: Optional[int] = None) -> List[Dict]:
         print("\n📍 Step 2: Scraping paper links!")
         page_count = 0
@@ -156,6 +179,14 @@ class ArxivScraper:
                         paper.locator('xpath=//p[@class="list-title is-inline-block"]/a').get_attribute("href"))
                     author_locator = paper.locator('xpath=//p[contains(@class, "authors")]')
                     author_text = await author_locator.text_content()
+
+                    # paper_link_page = await self.page.context.new_page()
+                    # await paper_link_page.goto(paper_link, wait_until='load')
+                    # related_keyword = paper_link_page.locator('xpath=//*[@id="abs"]/div[4]/table/tbody/tr[1]/td[2]/span')
+                    # related_keyword_text = await related_keyword.text_content()
+                    # await paper_link_page.close()
+                    
+                    # if not await self.cosine_similarity(related_keyword_text): continue
 
                     paper_id = None
                     if paper_link:
@@ -351,7 +382,7 @@ async def async_main():
         await arxiv_scraper.connect_to_arxiv_and_search()
 
         # Step 2: Get paper IDs (use max_pages_DEBUG_MODE=1 for testing)
-        await arxiv_scraper.get_paper_ids() #max_pages_DEBUG_MODE=1
+        await arxiv_scraper.get_paper_ids(max_pages_DEBUG_MODE=1) 
 
         # Step 3: Get author details
         await arxiv_scraper.get_author_details()

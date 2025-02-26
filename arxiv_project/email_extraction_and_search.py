@@ -189,6 +189,15 @@ class WebSearch:
         """Implement PerplexityConfig to WebSearch."""
         self.config = config
         self.author_name = name
+        wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
+        self.headers = [str(cell.value).strip().lower() if cell.value else None for cell in ws[1]]
+
+        self.keyword_index = None
+        for i, header in enumerate(self.headers):
+            if header == "keyword":
+                self.keyword_index = i
+                break
+
 
     def perplexity_search(self) -> str:
         """Search for email addresses for the provided author name."""
@@ -200,7 +209,7 @@ class WebSearch:
                     "role": "system",
                     "content": (
                         "You are a web searcher assistant. The user will provide an author name. "
-                        "Your task is: Search email addresses for provided author name. "
+                        f"Your task is: Search email addresses in the {self.keyword_index} field for provided author name."
                         "If you find no email addresses, return 'None'. "
                         "Output only the emails or 'None'—no additional explanations."
                     ),
@@ -251,7 +260,7 @@ class WebSearch:
         agent = Agent(
             task=f"""
             1. Go to Google.com.
-            2. Search '{self.author_name} email address and enter.
+            2. Search {self.author_name} email address in the {self.keyword_index} field and enter.
             3. Output only the emails or 'None'—no additional explanations.
             """,
             llm=ChatOpenAI(model="gpt-4o"),
