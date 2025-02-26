@@ -1,9 +1,10 @@
 import asyncio
-from playwright.async_api import async_playwright
-from urllib.request import urlretrieve
 import os
 from typing import Optional
+from urllib.request import urlretrieve
+
 from openpyxl import load_workbook
+from playwright.async_api import async_playwright
 
 
 class SemanticScholarScraper:
@@ -11,7 +12,7 @@ class SemanticScholarScraper:
         self.proxy_config = proxy_config or {
             "server": "brd.superproxy.io:33335",
             "username": "brd-customer-hl_fc29e1f2-zone-semanticscholar",
-            "password": "p8tgqocdlqav"
+            "password": "p8tgqocdlqav",
         }
 
     @staticmethod
@@ -20,15 +21,17 @@ class SemanticScholarScraper:
 
     @staticmethod
     def get_filename_from_url(url: str) -> str:
-        return url.split('/')[-1]
+        return url.split("/")[-1]
 
     async def click_dropdown_control(self, page) -> bool:
         try:
             # Wait for and check if the dropdown control div is visible
-            dropdown_control = page.locator('div.dropdown-filters__sort-control.search-sort.flex-row-vcenter')
+            dropdown_control = page.locator(
+                "div.dropdown-filters__sort-control.search-sort.flex-row-vcenter"
+            )
 
             try:
-                await dropdown_control.wait_for(state='visible', timeout=5000)
+                await dropdown_control.wait_for(state="visible", timeout=5000)
                 is_visible = await dropdown_control.is_visible()
                 print(f"Dropdown control visibility: {is_visible}")
 
@@ -39,8 +42,9 @@ class SemanticScholarScraper:
 
                     # Wait for select element to be visible after clicking
                     select_element = page.locator(
-                        'xpath=//*[@id="app"]/div[1]/div[2]/div/main/div[2]/div/div/div/div[1]/div/div/div[2]/div[1]/select')
-                    await select_element.wait_for(state='visible', timeout=5000)
+                        'xpath=//*[@id="app"]/div[1]/div[2]/div/main/div[2]/div/div/div/div[1]/div/div/div[2]/div[1]/select'
+                    )
+                    await select_element.wait_for(state="visible", timeout=5000)
                     return True
                 else:
                     print("Dropdown control is not visible")
@@ -58,26 +62,29 @@ class SemanticScholarScraper:
         try:
             # Use select_option on the select element
             select_element = page.locator(
-                'xpath=//*[@id="app"]/div[1]/div[2]/div/main/div[2]/div/div/div/div[1]/div/div/div[2]/div[1]/select')
-            await select_element.select_option('pub-date')
+                'xpath=//*[@id="app"]/div[1]/div[2]/div/main/div[2]/div/div/div/div[1]/div/div/div[2]/div[1]/select'
+            )
+            await select_element.select_option("pub-date")
 
             # Wait for network idle after selection
-            await page.wait_for_load_state('networkidle')
+            await page.wait_for_load_state("networkidle")
 
             # Wait a bit longer for any client-side updates
             await page.wait_for_timeout(3000)
 
             # Check if the URL contains the sort parameter
             current_url = page.url
-            if 'sort=pub-date' not in current_url:
+            if "sort=pub-date" not in current_url:
                 # If not in URL, try to modify it
-                new_url = current_url + ('&' if '?' in current_url else '?') + 'sort=pub-date'
-                await page.goto(new_url, wait_until='networkidle')
+                new_url = (
+                    current_url + ("&" if "?" in current_url else "?") + "sort=pub-date"
+                )
+                await page.goto(new_url, wait_until="networkidle")
                 await page.wait_for_timeout(2000)
 
             # Verify that the sorting option is still selected
-            selected_value = await select_element.evaluate('element => element.value')
-            return selected_value == 'pub-date'
+            selected_value = await select_element.evaluate("element => element.value")
+            return selected_value == "pub-date"
         except Exception as e:
             print(f"Error selecting sort option: {e}")
             return False
@@ -97,26 +104,32 @@ class SemanticScholarScraper:
                         print("Successfully sorted by publication date")
 
                         # Wait for the page to settle
-                        await page.wait_for_load_state('networkidle')
+                        await page.wait_for_load_state("networkidle")
                         await page.wait_for_timeout(2000)
 
                         # Verify sorting by checking dates of first few papers
-                        paper_dates = await page.evaluate('''() => {
+                        paper_dates = await page.evaluate("""() => {
                             const papers = document.querySelectorAll('[data-paper-id]');
                             return Array.from(papers).slice(0, 5).map(paper => {
                                 const dateElement = paper.querySelector('span[data-selenium-selector="paper-year"]');
                                 return dateElement ? dateElement.textContent : null;
                             });
-                        }''')
+                        }""")
 
                         if paper_dates and all(paper_dates):
                             # Convert to integers and check if they're in descending order
-                            dates = [int(date) for date in paper_dates if date and date.isdigit()]
+                            dates = [
+                                int(date)
+                                for date in paper_dates
+                                if date and date.isdigit()
+                            ]
                             if dates == sorted(dates, reverse=True):
                                 print("Verified papers are sorted by date")
                                 return True
 
-                    print(f"Attempt {attempt + 1}: Sorting verification failed, retrying...")
+                    print(
+                        f"Attempt {attempt + 1}: Sorting verification failed, retrying..."
+                    )
                     await asyncio.sleep(2)
 
                 except Exception as e:
@@ -148,39 +161,36 @@ class SemanticScholarScraper:
 
     async def process_paper_links(self, page) -> bool:
         link_selectors = {
-            'arxiv': {
-                'selector': 'a[href*="arxiv.org/pdf"]',
-                'name': 'arxiv link'
+            "arxiv": {"selector": 'a[href*="arxiv.org/pdf"]', "name": "arxiv link"},
+            "open_pdf": {
+                "selector": 'div.paper-badge-list a[href*="arxiv.org/pdf"]',
+                "name": "clickable paper",
             },
-            'open_pdf': {
-                'selector': 'div.paper-badge-list a[href*="arxiv.org/pdf"]',
-                'name': 'clickable paper'
+            "acl": {
+                "selector": ".class-cl-paper-action__button-container",
+                "name": "acl link",
             },
-            'acl': {
-                'selector': '.class-cl-paper-action__button-container',
-                'name': 'acl link'
+            "close_pdf": {
+                "selector": 'div.flex-row.paper-badge-list a[href*="arxiv.org/pdf"]',
+                "name": "close pdf paper",
             },
-            'close_pdf': {
-                'selector': 'div.flex-row.paper-badge-list a[href*="arxiv.org/pdf"]',
-                'name': 'close pdf paper'
+            "ieee": {
+                "selector": '//div[contains(@class, "paper-badge-list")]//a[contains(@href, "ieee")]',
+                "name": "ieee link",
+                "is_xpath": True,
             },
-            'ieee': {
-                'selector': '//div[contains(@class, "paper-badge-list")]//a[contains(@href, "ieee")]',
-                'name': 'ieee link',
-                'is_xpath': True
-            }
         }
 
-        for link_type, link_info in link_selectors.items():
+        for _link_type, link_info in link_selectors.items():
             try:
-                if link_info.get('is_xpath'):
-                    locator = page.locator(f'xpath={link_info["selector"]}').first
+                if link_info.get("is_xpath"):
+                    locator = page.locator(f"xpath={link_info['selector']}").first
                 else:
-                    locator = page.locator(link_info['selector']).first
+                    locator = page.locator(link_info["selector"]).first
 
                 if await locator.count() > 0:
                     print(f"Processing with {link_info['name']}")
-                    href = await locator.get_attribute('href')
+                    href = await locator.get_attribute("href")
                     if await self.download_paper(href):
                         return True
             except Exception as e:
@@ -194,13 +204,11 @@ class SemanticScholarScraper:
             browser = await pw.chromium.launch(
                 headless=False,
                 proxy=self.proxy_config,
-
             )
 
             context = await browser.new_context(
-                viewport={'width': 1280, 'height': 720},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-
+                viewport={"width": 1280, "height": 720},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
             )
 
             try:
@@ -210,7 +218,7 @@ class SemanticScholarScraper:
 
                     try:
                         url = f"http://www.semanticscholar.org/author/{author_id}"
-                        await page.goto(url, wait_until='networkidle')
+                        await page.goto(url, wait_until="networkidle")
 
                         # Wait for sort selector and try to sort
                         if not await self.wait_for_sort_selector(page):
@@ -223,7 +231,9 @@ class SemanticScholarScraper:
 
                         # Process paper links
                         if not await self.process_paper_links(page):
-                            print(f"No papers found or downloaded for author {author_id}")
+                            print(
+                                f"No papers found or downloaded for author {author_id}"
+                            )
 
                     except Exception as e:
                         print(f"Error processing author {author_id}: {e}")
@@ -238,9 +248,10 @@ class SemanticScholarScraper:
 
 
 async def _load_excel():
-    wb = load_workbook(filename='arxiv_scraped_data.xlsx')
+    wb = load_workbook(filename="arxiv_scraped_data.xlsx")
     ws = wb.active
     return ws
+
 
 async def main():
     scraper = SemanticScholarScraper()
@@ -251,5 +262,6 @@ async def main():
             await scraper.scrape_papers([author_id])
         print("-----------" * 15)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     asyncio.run(main())
