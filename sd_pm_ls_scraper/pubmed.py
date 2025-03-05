@@ -111,6 +111,71 @@ def save_articles_to_csv(records, filename=CSV_FILE):
             )
 
 
+def get_full_author_names():
+    import re
+
+    import pandas as pd
+    from playwright.sync_api import sync_playwright
+
+    try:
+        df = pd.read_csv(CSV_FILE, engine="python", quoting=1)
+    except Exception as e:
+        print(f"Error reading CSV with python engine: {e}")
+        try:
+            df = pd.read_csv(CSV_FILE, engine="python", quoting=3)
+        except Exception as e:
+            print(f"Error reading CSV with QUOTE_NONE: {e}")
+            try:
+                df = pd.read_csv(CSV_FILE, engine="python", on_bad_lines="skip")
+            except Exception as e:
+                df = pd.read_csv(CSV_FILE, engine="python", error_bad_lines=False)
+
+    # Add the Full Authors column if it doesn't exist
+    if "Full Authors" not in df.columns:
+        df["Full Authors"] = ""
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        page = browser.new_page()
+
+        for index, row in df.iterrows():
+            link = row["PubMed URL"]
+            if isinstance(link, str):
+                print(f"Visiting link {index + 1}/{len(df)}: {link}")
+                try:
+                    page.goto(link, timeout=60000)
+                    author_elements = page.locator(
+                        'xpath=//*[@id="full-view-heading"]/div[2]/div/div/span'
+                    )
+
+                    if author_elements.count() > 0:
+                        authors = [
+                            element.text_content().strip()
+                            for element in author_elements.element_handles()
+                        ]
+                        cleaned_authors = [
+                            re.sub(r"\s+", " ", re.sub(r"\d+", "", author))
+                            .strip()
+                            .rstrip(",")
+                            .strip()
+                            for author in authors
+                        ]
+                        df.at[index, "Full Authors"] = "; ".join(cleaned_authors)
+                    else:
+                        df.at[index, "Full Authors"] = "No authors found"
+                except Exception as e:
+                    print(f"Error processing {link}: {e}")
+                    df.at[index, "Full Authors"] = f"Error: {str(e)}"
+            else:
+                df.at[index, "Full Authors"] = "No valid URL"
+
+        browser.close()
+
+    # Save the final results
+    df.to_csv(CSV_FILE, index=False, encoding="utf-8")
+    print("Completed extracting full author names")
+
+
 if __name__ == "__main__":
     search_term = "microbial kinetics"
     pubmed_ids = search_pubmed(search_term)
@@ -121,3 +186,4 @@ if __name__ == "__main__":
         print("PubMed articles saved to 'pubmed_articles.csv'")
     else:
         print("No articles found.")
+    get_full_author_names()
