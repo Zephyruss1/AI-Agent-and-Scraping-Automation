@@ -8,8 +8,12 @@ from Bio import Entrez, Medline
 Entrez.email = "your.email@example.com"
 
 # Directory to save PDFs
-PDF_DIR = "pubmed_pdfs"
+PDF_DIR = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output"
 os.makedirs(PDF_DIR, exist_ok=True)
+
+CSV_FILE = (
+    "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_articles.csv"
+)
 
 
 # Search for articles related to a given term
@@ -50,7 +54,7 @@ def download_pdf(pmc_id, title):
 
 
 # Extract information and save to CSV
-def save_articles_to_csv(records, filename="pubmed_articles.csv"):
+def save_articles_to_csv(records, filename=CSV_FILE):
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(
@@ -84,11 +88,9 @@ def save_articles_to_csv(records, filename="pubmed_articles.csv"):
 
             # Check for PMC ID (PubMed Central)
             pmc_url, pdf_path = "No PMC Full Text", "No PDF available"
-            # if "PMC" in record:
-            #     pmc_id = record["PMC"]
-            #     pmc_url = f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmc_id}/"
-            #     print("Downloading PDF for:", pmc_id)
-            #     pdf_path = download_pdf(pmc_id, title)
+            if "PMC" in record:
+                pmc_id = record["PMC"]
+                pmc_url = f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmc_id}/"
 
             doi = record.get("LID", "No DOI available").split()[
                 0
