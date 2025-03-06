@@ -10,7 +10,7 @@ load_dotenv()
 api_key = os.getenv("ELSEVIER_API_KEY")
 
 
-def make_request(search_query: str, max_papers: int = 20000) -> list:
+def make_request(search_query: str, max_papers: int = 10) -> list:
     retries, start, count = 0, 0, 25
     results = []
     while len(results) < max_papers and start < 20000:
@@ -30,26 +30,26 @@ def make_request(search_query: str, max_papers: int = 20000) -> list:
             timeout=10,
         )
         print(f"Status code: {response.status_code}")
-        if response.status_code == 200:
-            data = response.json()
-            if "search-results" in data and "entry" in data["search-results"]:
-                results.extend(data["search-results"]["entry"])
-                print(
-                    f"Retrieved {len(data['search-results']['entry'])} results. Total: {len(results)}"
-                )
-            else:
-                print("No results found in the response.")
-                break
-            start += count
-        elif response.status_code == 429:
-            wait_time = 2**retries
-            print(f"Received 429, waiting {wait_time}")
-            time.sleep(wait_time)
-            retries += 1
-        else:
-            print(f"Failed to retrieve results: {response.status_code}")
+        try:
+            if response.status_code == 200:
+                data = response.json()
+                if "search-results" in data and "entry" in data["search-results"]:
+                    results.extend(data["search-results"]["entry"])
+                    print(
+                        f"Retrieved {len(data['search-results']['entry'])} results. Total: {len(results)}"
+                    )
+                else:
+                    print("No results found in the response.")
+                    break
+                start += count
+            elif response.status_code == 429:
+                wait_time = 2**retries
+                print(f"Received 429, waiting {wait_time}")
+                time.sleep(wait_time)
+                retries += 1
+        except Exception as e:
+            print(f"Error: {e}")
             break
-
     return results
 
 
