@@ -1,6 +1,7 @@
 import csv
 import os
 
+import pandas as pd
 import requests
 from Bio import Entrez, Medline
 
@@ -17,7 +18,7 @@ CSV_FILE = (
 
 
 # Search for articles related to a given term
-def search_pubmed(query, max_results=18865):
+def search_pubmed(query, max_results=50):
     handle = Entrez.esearch(db="pubmed", term=query, retmax=max_results)
     record = Entrez.read(handle)
     handle.close()
@@ -33,24 +34,28 @@ def fetch_pubmed_details(id_list):
     return records
 
 
-def download_pdf(pmc_id, title):
-    pdf_url = f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmc_id}/pdf/"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-    }
-    response = requests.get(pdf_url, headers=headers, stream=True)
+def download_pdf():
+    df = pd.read_csv(CSV_FILE)
+    for index, row in df.iterrows():
+        pmc_url = row["PMC Full Text URL"]
+        print(f"Visiting paper link {index + 1}/{len(df)}: {pmc_url}")
+        if "No PMC Full Text" not in pmc_url:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+            }
+            response = requests.get(pmc_url, headers=headers, stream=True)
 
-    if response.status_code == 200:
-        pdf_filename = os.path.join(PDF_DIR, f"{pmc_id}.pdf")
-        with open(pdf_filename, "wb") as pdf_file:
-            for chunk in response.iter_content(chunk_size=1024):
-                pdf_file.write(chunk)
-        print(f"PDF downloaded: {pdf_filename}")
-        return pdf_filename
-    else:
-        print(f"No free PDF found for {pmc_id}")
-        response.raise_for_status()
-        return "No PDF available"
+        if response.status_code == 200:
+            pdf_filename = os.path.join(PDF_DIR, f"{pmc_url}.pdf")
+            with open(pdf_filename, "wb") as pdf_file:
+                for chunk in response.iter_content(chunk_size=1024):
+                    pdf_file.write(chunk)
+            print(f"PDF downloaded: {pdf_filename}")
+            return pdf_filename
+        else:
+            print(f"No free PDF found for {pmc_url}")
+            response.raise_for_status()
+            return "No PDF available"
 
 
 # Extract information and save to CSV
@@ -114,7 +119,6 @@ def save_articles_to_csv(records, filename=CSV_FILE):
 def get_full_author_names():
     import re
 
-    import pandas as pd
     from playwright.sync_api import sync_playwright
 
     try:
