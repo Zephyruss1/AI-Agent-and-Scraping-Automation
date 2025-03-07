@@ -187,7 +187,7 @@ if __name__ == "__main__":
     if pubmed_ids:
         pubmed_records = fetch_pubmed_details(pubmed_ids)
         save_articles_to_csv(pubmed_records)
-        print("PubMed articles saved to 'pubmed_articles.csv'")
+        print("PubMed articles saved to 'pubmed_results.csv'")
     else:
         print("No articles found.")
     get_full_author_names()

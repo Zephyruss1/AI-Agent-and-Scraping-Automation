@@ -41,7 +41,7 @@ async def _save_excel_all_springer(articles: List[Dict]) -> None:
         )
 
     try:
-        save_path = os.path.abspath("test_springer.xlsx")
+        save_path = os.path.abspath("springer_results.xlsx")
         wb.save(save_path)
         print(
             f"    ✅ [INFO] {len(articles)} articles successfully saved to Excel at {save_path}!"
