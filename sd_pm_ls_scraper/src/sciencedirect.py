@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 api_key = os.getenv("ELSEVIER_API_KEY")
+insttoken = os.getenv("ELSEVIER_INSTTOKEN")
 
 
 def make_request(search_query: str, max_papers: int = 10) -> list:
@@ -21,7 +22,11 @@ def make_request(search_query: str, max_papers: int = 10) -> list:
             "view": "COMPLETE",
         }
 
-        headers = {"Accept": "application/json", "X-ELS-APIKey": api_key}
+        headers = {
+            "Accept": "application/json",
+            "X-ELS-APIKey": api_key,
+            "X-ELS-Insttoken": insttoken,
+        }
 
         response = requests.get(
             "https://api.elsevier.com/content/search/sciencedirect",
@@ -57,7 +62,7 @@ def save_csv(results: list) -> None:
     if results:
         os.makedirs("output", exist_ok=True)
 
-        headers = ["Title", "DOI", "Authors", "Journal", "Date", "Paper Link", "Free"]
+        headers = ["Title", "Authors", "Source", "DOI", "Date", "Paper Link"]
         with open(
             "output/sciencedirect_results.csv", "w", newline="", encoding="utf-8"
         ) as f:
@@ -86,10 +91,8 @@ def save_csv(results: list) -> None:
                     "N/A",
                 )
 
-                free = doc.get("openaccess", "N/A")
-
                 writer.writerow(
-                    [title, doi, formatted_authors, journal, date, paper_link, free]
+                    [title, doi, formatted_authors, journal, date, paper_link]
                 )
 
         print(
