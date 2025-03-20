@@ -2,6 +2,9 @@ import os
 import warnings
 
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
 
 warnings.filterwarnings("ignore")
 
@@ -189,22 +192,19 @@ def download_pdf() -> str:
         print(f"\nProcessing DOI: {paper_doi}")
         paper_doi = str(paper_doi).strip()
         API_URL = f"{BASE_URL}{paper_doi}"
+
         try:
-            # Make the API request with redirect following
             response = requests.get(API_URL, headers=headers, allow_redirects=True)
 
-            # Check if the request was successful
             if response.status_code == 200:
-                # Verify that the content type is PDF
                 if response.headers.get("Content-Type") == "application/pdf":
-                    # Save the PDF to a file
-                    filename = paper_doi.replace("/", "_") + ".pdf"
                     pdf_filename = os.path.join(
                         PDF_DIR_SCIENCEDIRECT, f"{paper_doi.replace('/', '_')}.pdf"
                     )
                     with open(pdf_filename, "wb") as pdf_file:
                         pdf_file.write(response.content)
-                    print(f"PDF downloaded successfully: {filename}")
+                    print(f"PDF downloaded successfully: {pdf_filename}")
+                    count += 1
                 else:
                     print(
                         f"Error: Content-Type is {response.headers.get('Content-Type')}, not PDF."
@@ -214,7 +214,7 @@ def download_pdf() -> str:
                 print(f"Response: {response.text}")
         except requests.exceptions.RequestException as e:
             print(f"An error occurred: {e}")
-        break
+
     print(f"\nTotal PDFs downloaded from ScienceDirect: {count}")
 
 
