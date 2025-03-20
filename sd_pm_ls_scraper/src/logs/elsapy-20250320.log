@@ -1,0 +1,7 @@
+2025-03-20 12:30:55,737 - elsapy.elsclient - INFO - Module loaded.
+2025-03-20 12:30:55,745 - elsapy.elsentity - INFO - Module loaded.
+2025-03-20 12:30:55,745 - elsapy.elsdoc - INFO - Module loaded.
+2025-03-20 12:30:56,738 - elsapy.elsclient - INFO - Sending GET request to https://api.elsevier.com/content/article/doi/10.1016/j.foodcont.2013.04.027
+2025-03-20 12:30:56,994 - elsapy.elsentity - WARNING - HTTP 401 Error from https://api.elsevier.com/content/article/doi/10.1016/j.foodcont.2013.04.027
+and using headers {'X-ELS-APIKey': '44f6ac018400bc52389308e9a5fe52d5', 'User-Agent': 'elsapy-v0.5.1', 'Accept': 'application/json'}:
+{"service-error":{"status":{"statusCode":"AUTHENTICATION_ERROR","statusText":"Invalid API Key: valid apikey credentials required."}}}
