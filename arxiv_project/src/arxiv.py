@@ -154,6 +154,9 @@ class ArxivScraper:
         except Exception as e:
             print(f"     ❌ [ERROR] An error occurred while searching: {e}")
 
+    # NOTE: The cosine_similarity method ideal candidate to scrap paper tags and
+    # inspect to if paper content is related with tag
+
     # async def cosine_similarity(self, references: str) -> bool:
     #     print("DEBUG: Using cosine similarity to find related papers...")
     #     match_found = False

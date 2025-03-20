@@ -301,4 +301,3 @@ if __name__ == "__main__":
     import asyncio
 
     asyncio.run(async_springer())
-    # asyncio.run(async_pubmed())
