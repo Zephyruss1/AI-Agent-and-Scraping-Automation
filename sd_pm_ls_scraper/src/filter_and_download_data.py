@@ -6,9 +6,11 @@ import pandas as pd
 warnings.filterwarnings("ignore")
 
 # Define base directory path
-os.makedirs("/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/pdfs", exist_ok=True)
+os.makedirs(
+    "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs", exist_ok=True
+)
 BASE_DIR = "/root/arxiv-and-scholar-scraping"
-PDF_DIR = os.path.join(BASE_DIR, "sd_pm_ls_scraper/pdfs")
+PDF_DIR = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pdfs")
 
 # Load the API key and institution token
 API_KEY = os.getenv("ELSEVIER_API_KEY")
