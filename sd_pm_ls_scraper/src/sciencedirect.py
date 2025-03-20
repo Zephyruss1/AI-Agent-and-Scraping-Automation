@@ -7,64 +7,123 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-api_key = os.getenv("ELSEVIER_API_KEY")
-insttoken = os.getenv("ELSEVIER_INSTTOKEN")
+API_KEY = os.getenv("ELSEVIER_API_KEY")
+INSTTOKEN = os.getenv("ELSEVIER_INSTTOKEN")
 
 
-def make_request(search_query: str, max_papers: int = 10) -> list:
-    retries, start, count = 0, 0, 25
+def make_request(
+    search_query: str, start_year: str, end_year: str, max_papers: int = 10
+) -> list:
+    """
+    Fetch ScienceDirect articles with a date range filter.
+
+    Args:
+        search_query (str): The search term (e.g., "microbial kinetics AND CFU").
+        start_year (str): Start date in 'YYYY/MM/DD' format (e.g., "2010/01/01").
+        end_year (str): End date in 'YYYY/MM/DD' format (e.g., "2020/12/31").
+        max_papers (int): Maximum number of papers to retrieve (default: 10).
+
+    Returns:
+        list: List of search result entries.
+    """
+    retries: int
+    start: int
+    count: int = 25
+
+    retries, start = 0, 0
     results = []
+
+    year_range = f"{start_year}-{end_year}"
+
+    params = {
+        "query": search_query,
+        "date": year_range,
+        "start": start,
+        "count": count,
+        "view": "COMPLETE",
+    }
+
+    headers = {
+        "Accept": "application/json",
+        "X-ELS-APIKey": API_KEY,
+        "X-ELS-Insttoken": INSTTOKEN,
+    }
+
+    print(f"Using year range filter: date={year_range}")
+
     while len(results) < max_papers and start < 20000:
-        params = {
-            "query": search_query,
-            "start": start,
-            "count": count,
-            "view": "COMPLETE",
-        }
-
-        headers = {
-            "Accept": "application/json",
-            "X-ELS-APIKey": api_key,
-            "X-ELS-Insttoken": insttoken,
-        }
-
-        response = requests.get(
-            "https://api.elsevier.com/content/search/sciencedirect",
-            params=params,
-            headers=headers,
-            timeout=10,
-        )
-        print(f"Status code: {response.status_code}")
         try:
+            response = requests.get(
+                "https://api.elsevier.com/content/search/sciencedirect",
+                params=params,
+                headers=headers,
+                timeout=10,
+            )
+            print(f"Request URL: {response.url}")
+            print(f"Status code: {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
-                if "search-results" in data and "entry" in data["search-results"]:
-                    results.extend(data["search-results"]["entry"])
-                    print(
-                        f"Retrieved {len(data['search-results']['entry'])} results. Total: {len(results)}"
+                if "search-results" in data:
+                    total_results = int(
+                        data["search-results"].get("opensearch:totalResults", 0)
                     )
+                    print(f"Total available results: {total_results}")
+                    if "entry" in data["search-results"]:
+                        entries = data["search-results"]["entry"]
+                        results.extend(entries)
+                        print(
+                            f"Retrieved {len(entries)} results in this batch. Total: {len(results)}"
+                        )
+                        if len(entries) < count and len(results) < total_results:
+                            print(
+                                "Received fewer results than requested, but more may be available."
+                            )
+                        elif len(entries) == 0 or len(results) >= total_results:
+                            print("No more results available.")
+                            break
+                        start += count
+                        params["start"] = start  # Update start for next batch
+                    else:
+                        print("No results found in the response.")
+                        break
                 else:
-                    print("No results found in the response.")
+                    print("Invalid response format.")
                     break
-                start += count
             elif response.status_code == 429:
                 wait_time = 2**retries
-                print(f"Received 429, waiting {wait_time}")
+                print(f"Received 429, waiting {wait_time} seconds")
                 time.sleep(wait_time)
                 retries += 1
+            else:
+                print(f"Unexpected status code: {response.status_code}")
+                break
         except Exception as e:
             print(f"Error: {e}")
             break
-    return results
+
+    return results[:max_papers]
 
 
 def save_csv(results: list) -> None:
     if results:
-        os.makedirs("output", exist_ok=True)
+        os.makedirs(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output", exist_ok=True
+        )
 
-        headers = ["Title", "Authors", "Source", "DOI", "Date", "Paper Link"]
+        headers = [
+            "Title",
+            "DOI",
+            "Authors",
+            "Source",
+            "Date",
+            "Paper Link",
+            "openaccess",
+        ]
         with open(
-            "output/sciencedirect_results.csv", "w", newline="", encoding="utf-8"
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
+            "w",
+            newline="",
+            encoding="utf-8",
         ) as f:
             writer = csv.writer(f)
             writer.writerow(headers)
@@ -85,6 +144,8 @@ def save_csv(results: list) -> None:
                 journal = doc.get("prism:publicationName", "N/A")
                 date = doc.get("prism:coverDate", "N/A")
 
+                open_access = doc.get("openaccess", "N/A")
+
                 links = doc.get("link", [])
                 paper_link = next(
                     (link.get("@href", "N/A") for link in links if "@href" in link),
@@ -92,7 +153,15 @@ def save_csv(results: list) -> None:
                 )
 
                 writer.writerow(
-                    [title, doi, formatted_authors, journal, date, paper_link]
+                    [
+                        title,
+                        doi,
+                        formatted_authors,
+                        journal,
+                        date,
+                        paper_link,
+                        open_access,
+                    ]
                 )
 
         print(
@@ -102,5 +171,12 @@ def save_csv(results: list) -> None:
         print("⚠ No results to write to CSV.")
 
 
-results = make_request("microbiology", max_papers=100)
-save_csv(results)
+if __name__ == "__main__":
+    search_term = "microbial kinetics AND CFU"
+    start_date = "2010"
+    end_date = "2020"
+    max_papers = 100
+
+    results = make_request(search_term, start_date, end_date, max_papers)
+    print(f"Total articles retrieved: {len(results)}")
+    save_csv(results)
