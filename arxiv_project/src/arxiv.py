@@ -1,13 +1,17 @@
 import asyncio
+import concurrent.futures
+import os
+import subprocess
 from typing import Dict, List, Optional
 
 import aiohttp
+import requests
 from openpyxl import Workbook, load_workbook
 from playwright.async_api import async_playwright
 
 
-async def _load_excel():
-    wb = load_workbook(filename="arxiv_scraped_data.xlsx")
+async def _load_excel(filename: str):
+    wb = load_workbook(filename=filename)
     ws = wb.active
     return ws
 
@@ -45,7 +49,7 @@ def _save_excel(author_list: List[Dict], keyword: List[str]) -> None:
         )
 
     try:
-        wb.save("arxiv_scraped_data.xlsx")
+        wb.save("/root/arxiv-and-scholar-scraping/arxiv_project/output")
         print("    ✅ [INFO] Details successfully saved to Excel!")
     except Exception as e:
         print(f"    ❌ [ERROR] An error occurred while saving Excel file: {e}")
@@ -426,6 +430,95 @@ class ArxivScraper:
         return self.papers
 
 
+class DownloadPDF:
+    def __init__(self, excel_path):
+        self.excel_path = excel_path
+        self.proxy = {
+            "account_id": "hl_fc29e1f2",
+            "zone_name": "semanticscholar",
+            "password": "p8tgqocdlqav",
+        }
+
+    def download_arxiv_pdf(
+        self,
+        pdf_url: str,
+        save_dir: str = "/root/arxiv-and-scholar-scraping/arxiv_project/output/pdfs/",
+    ) -> bool:
+        """Download PDF from the given URL using requests."""
+        if not pdf_url:
+            print(f"    ⚠️ [WARNING] Skipping invalid paper url: {pdf_url}")
+            return False
+
+        # Convert abstract URL to PDF URL
+        if "arxiv.org/abs" in pdf_url:
+            pdf_url = pdf_url.replace("arxiv.org/abs", "arxiv.org/pdf") + ".pdf"
+
+        save_path = os.path.join(save_dir, f"{pdf_url.split('/')[-1]}")
+        os.makedirs(save_dir, exist_ok=True)
+
+        if os.path.exists(save_path):
+            print(f"    ⚠️ [WARNING] {pdf_url}: PDF already exists.")
+            return True
+
+        try:
+            proxy_url = "brd.superproxy.io:33335"
+            proxy_auth = f"brd-customer-{self.proxy['account_id']}-zone-{self.proxy['zone_name']}:{self.proxy['password']}"
+
+            cmd = [
+                "curl",
+                "--proxy",
+                proxy_url,
+                "--proxy-user",
+                proxy_auth,
+                "-k",
+                pdf_url,
+                "-o",
+                save_path,
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(
+                    f"    ❌ [ERROR] {pdf_url}: PDF can't be downloaded. Error: {result.stderr}"
+                )
+                return False
+
+            print(
+                f"    ✅ [INFO] {pdf_url}: PDF successfully downloaded -> {save_path}"
+            )
+            return True
+
+        except requests.exceptions.RequestException as e:
+            print(f"    ❌ [ERROR] {pdf_url}: Request error - {str(e)}")
+            return False
+
+    async def start_download(self, max_workers: int = 3) -> None:
+        """Start downloading PDFs with rate limiting consideration."""
+        print("\n📍 Step 6: Downloading PDFs!")
+        ws = await _load_excel(
+            filename="/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data.xlsx"
+        )
+
+        if not ws:
+            print("     ❌ [ERROR] Excel file not found!")
+            return
+
+        pdf_urls = [row[3].value for row in ws.iter_rows(min_row=2, max_col=4)]
+        print(f"    ℹ️ [INFO] Found {len(pdf_urls)} URLs to download.")
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(self.download_arxiv_pdf, pdf_url): pdf_url
+                for pdf_url in pdf_urls
+            }
+            for future in concurrent.futures.as_completed(futures):
+                pdf_url = futures[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"    ❌ [ERROR] {pdf_url}: Thread error - {e}")
+
+
 async def async_main():
     async with async_playwright() as pw:
         args = [
@@ -451,7 +544,9 @@ async def async_main():
 
         # Create the ArxivScraper instance and assign the open page
         arxiv_scraper = ArxivScraper(
-            keyword=["photonic circuits"], date_from="2022-01-01", date_to="2023-01-07"
+            keyword=["microbial kinetics AND CFU"],
+            date_from="2022-01-01",
+            date_to="2023-01-07",
         )
         arxiv_scraper.page = page
 
@@ -470,8 +565,14 @@ async def async_main():
         # Step 5: Get related paper details
         await arxiv_scraper.get_related_paper_details()
 
-        # Save the scraped details to an Excel file
+        # step 6: Save the scraped details to an Excel file
         _save_excel(arxiv_scraper.papers, arxiv_scraper.keyword)
+
+        # Step 7: Download PDFs
+        download_pdf = DownloadPDF(
+            "/root/arxiv-and-scholar-scraping/arxiv_project/output"
+        )
+        await download_pdf.start_download()
 
 
 if __name__ == "__main__":
