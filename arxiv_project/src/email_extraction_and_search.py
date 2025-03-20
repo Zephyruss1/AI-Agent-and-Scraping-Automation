@@ -1,6 +1,4 @@
-import concurrent.futures
 import os
-import subprocess
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -23,96 +21,13 @@ def _load_excel(file_name: str) -> object:
     return wb, ws
 
 
-class DownloadPDF:
-    def __init__(self, excel_path):
-        self.excel_path = excel_path
-        self.proxy = {
-            "account_id": "hl_fc29e1f2",
-            "zone_name": "semanticscholar",
-            "password": "p8tgqocdlqav",
-        }
-
-    def download_arxiv_pdf(self, pdf_url: str, save_dir: str = "pdfs") -> bool:
-        """Download PDF from the given URL using requests."""
-        if not pdf_url:
-            print(f"    ⚠️ [WARNING] Skipping invalid paper url: {pdf_url}")
-            return False
-
-        # Convert abstract URL to PDF URL
-        if "arxiv.org/abs" in pdf_url:
-            pdf_url = pdf_url.replace("arxiv.org/abs", "arxiv.org/pdf") + ".pdf"
-
-        save_path = os.path.join(save_dir, f"{pdf_url.split('/')[-1]}")
-        os.makedirs(save_dir, exist_ok=True)
-
-        if os.path.exists(save_path):
-            print(f"    ⚠️ [WARNING] {pdf_url}: PDF already exists.")
-            return True
-
-        try:
-            proxy_url = "brd.superproxy.io:33335"
-            proxy_auth = f"brd-customer-{self.proxy['account_id']}-zone-{self.proxy['zone_name']}:{self.proxy['password']}"
-
-            cmd = [
-                "curl",
-                "--proxy",
-                proxy_url,
-                "--proxy-user",
-                proxy_auth,
-                "-k",
-                pdf_url,
-                "-o",
-                save_path,
-            ]
-
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                print(
-                    f"    ❌ [ERROR] {pdf_url}: PDF can't be downloaded. Error: {result.stderr}"
-                )
-                return False
-
-            print(
-                f"    ✅ [INFO] {pdf_url}: PDF successfully downloaded -> {save_path}"
-            )
-            return True
-
-        except requests.exceptions.RequestException as e:
-            print(f"    ❌ [ERROR] {pdf_url}: Request error - {str(e)}")
-            return False
-
-    def start_download(self, max_workers: int = 3) -> None:
-        """Start downloading PDFs with rate limiting consideration."""
-        print("\n📍 Step 6: Downloading PDFs!")
-        wb, ws = _load_excel(file_name=self.excel_path)
-
-        if not ws:
-            print("     ❌ [ERROR] Excel file not found!")
-            return
-
-        pdf_urls = [row[3].value for row in ws.iter_rows(min_row=2, max_col=4)]
-        print(f"    ℹ️ [INFO] Found {len(pdf_urls)} URLs to download.")
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(self.download_arxiv_pdf, pdf_url): pdf_url
-                for pdf_url in pdf_urls
-            }
-            for future in concurrent.futures.as_completed(futures):
-                pdf_url = futures[future]
-                try:
-                    future.result()
-                except Exception as e:
-                    print(f"    ❌ [ERROR] {pdf_url}: Thread error - {e}")
-
-
 class LoadPDF:
     """Load PDFs and extract text from them."""
 
     print("\n📍 Step 7: Loading PDFs and Extracting Text!")
 
     def __init__(self):
-        self.pdf_dir = "pdfs/"
+        self.pdf_dir = "/root/arxiv-and-scholar-scraping/arxiv_project/output/pdfs/"
 
     def extract_text_from_pdf(self) -> str:
         """Extract text from a PDF file."""
@@ -209,7 +124,9 @@ class WebSearch:
         """Implement PerplexityConfig to WebSearch."""
         self.config = config
         self.author_name = name
-        wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
+        wb, ws = _load_excel(
+            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx"
+        )
         self.headers = [
             str(cell.value).strip().lower() if cell.value else None for cell in ws[1]
         ]
@@ -303,7 +220,9 @@ class FindSimilarity:
     def find_email_author_and_save(self, list_of_emails: List[str]) -> object:
         """Find the email address and author name using Cosine Similarity."""
         print("\n📍 Step 9: Finding Similarity and Saving to Excel!")
-        wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
+        wb, ws = _load_excel(
+            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx"
+        )
         headers = [
             str(cell.value).strip().lower() if cell.value else None for cell in ws[1]
         ]
@@ -356,34 +275,34 @@ class FindSimilarity:
                 last_row = ws.max_row + 1
                 ws.cell(row=last_row, column=email_column, value=email)
 
-        return wb.save("arxiv_scraped_data_backup.xlsx")
+        return wb.save(
+            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx"
+        )
 
 
 def extract():
-    # Step 1: Download PDFs
-    pdf_downloader = DownloadPDF("arxiv_scraped_data.xlsx")
-    pdf_downloader.start_download()
+    # Step 1: Load PDFs and extract text
+    pdf_loader = LoadPDF()
+    pdf_length = pdf_loader.__len__()
+    pdf_texts = pdf_loader.extract_text_from_pdf()
 
-    # # Step 2: Load PDFs and extract text
-    # pdf_loader = LoadPDF()
-    # pdf_length = pdf_loader.__len__()
-    # pdf_texts = pdf_loader.extract_text_from_pdf()
+    for i in range(pdf_length):
+        print(f"     [INFO] Extracted text from PDF {i + 1}")
 
-    # for i in range(pdf_length):
-    #     print(f"     [INFO] Extracted text from PDF {i+1}")
+        # Step 2: Extract email addresses from the text
+        email_extractor = ExtractEmails()
+        list_of_emails = email_extractor.chatgpt_response(pdf_texts)
 
-    #     # Step 3: Extract email addresses from the text
-    #     email_extractor = ExtractEmails()
-    #     list_of_emails = email_extractor.chatgpt_response(pdf_texts)
-
-    #     # Step 4: Find similarity between the author names and emails
-    #     similarity_finder = FindSimilarity()
-    #     similarity_finder.find_email_author_and_save(list_of_emails)
-    #     print("-----" * 15)
+        # Step 3: Find similarity between the author names and emails
+        similarity_finder = FindSimilarity()
+        similarity_finder.find_email_author_and_save(list_of_emails)
+        print("-----" * 15)
 
 
 def fill_empty_emails_with_search():
-    wb, ws = _load_excel("arxiv_scraped_data_backup.xlsx")
+    wb, ws = _load_excel(
+        "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx"
+    )
 
     headers = [cell.value for cell in ws[1]]
     if "emails" not in headers:
@@ -436,4 +355,4 @@ def fill_empty_emails_with_search():
 
 if __name__ == "__main__":
     extract()
-    # fill_empty_emails_with_search()
+    fill_empty_emails_with_search()
