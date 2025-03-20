@@ -7,10 +7,18 @@ warnings.filterwarnings("ignore")
 
 # Define base directory path
 os.makedirs(
-    "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs", exist_ok=True
+    "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/sciencedirect",
+    exist_ok=True,
+)
+os.makedirs(
+    "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/pubmed",
+    exist_ok=True,
 )
 BASE_DIR = "/root/arxiv-and-scholar-scraping"
-PDF_DIR = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pdfs")
+PDF_DIR_SCIENCEDIRECT = os.path.join(
+    BASE_DIR, "sd_pm_ls_scraper/output/pdfs/sciencedirect"
+)
+PDF_DIR_PUBMED = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pdfs/pubmed")
 
 # Load the API key and institution token
 API_KEY = os.getenv("ELSEVIER_API_KEY")
@@ -110,7 +118,8 @@ def _load_filtered_csv():
     """
     Load the filtered CSV files.
     """
-    os.makedirs(PDF_DIR, exist_ok=True)
+    os.makedirs(PDF_DIR_PUBMED, exist_ok=True)
+    os.makedirs(PDF_DIR_SCIENCEDIRECT, exist_ok=True)
 
     try:
         pubmed_filtered = pd.read_csv(
@@ -150,7 +159,7 @@ def download_pdf() -> str:
                 response = requests.get(pmc_url, headers=headers, stream=True)
                 if response.status_code == 200:
                     # Form the filename correctly
-                    pdf_filename = os.path.join(PDF_DIR, f"{file_name}.pdf")
+                    pdf_filename = os.path.join(PDF_DIR_PUBMED, f"{file_name}.pdf")
                     with open(pdf_filename, "wb") as pdf_file:
                         for chunk in response.iter_content(chunk_size=1024):
                             pdf_file.write(chunk)
@@ -191,7 +200,7 @@ def download_pdf() -> str:
                     # Save the PDF to a file
                     filename = paper_doi.replace("/", "_") + ".pdf"
                     pdf_filename = os.path.join(
-                        PDF_DIR, f"{paper_doi.replace('/', '_')} + .pdf"
+                        PDF_DIR_SCIENCEDIRECT, f"{paper_doi.replace('/', '_')}.pdf"
                     )
                     with open(pdf_filename, "wb") as pdf_file:
                         pdf_file.write(response.content)
