@@ -343,9 +343,9 @@ def extract_emails_from_pdf():
 
         # Step 2: Determine which CSV to load based on the PDF path
         if "sciencedirect" in pdf_path:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_filtered.csv"
+            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv"
         else:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_filtered.csv"
+            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
 
         # Load the CSV file and initialize FindSimilarity class with the file path
         df_csv = _load_csv(file_name=csv_file_path)
@@ -368,8 +368,8 @@ def extract_emails_from_pdf():
 
 def fill_empty_emails_with_search():
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_filtered.csv",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_filtered.csv",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv",
     ]
 
     for csv_path in csv_paths:
@@ -380,9 +380,9 @@ def fill_empty_emails_with_search():
             _csv["emails"] = ""
 
         if "sciencedirect" in csv_path:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_filtered.csv"
+            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv"
         else:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_filtered.csv"
+            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
 
         # WebSearch using Perplexity
         for _index, row in _csv.iterrows():
