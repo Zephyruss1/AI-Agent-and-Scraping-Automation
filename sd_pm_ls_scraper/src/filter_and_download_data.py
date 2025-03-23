@@ -110,10 +110,8 @@ def compare_authors(
 compare_authors(
     pubmed,
     sciencedirect,
-    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results_filtered.csv"),
-    os.path.join(
-        BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results_filtered.csv"
-    ),
+    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results.csv"),
+    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results.csv"),
 )
 
 
@@ -126,10 +124,10 @@ def _load_filtered_csv():
 
     try:
         pubmed_filtered = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_filtered.csv"
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
         )
         sciencedirect_filtered = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_filtered.csv"
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv"
         )
         return pubmed_filtered, sciencedirect_filtered
     except FileNotFoundError as e:
@@ -218,4 +216,30 @@ def download_pdf() -> str:
     print(f"\nTotal PDFs downloaded from ScienceDirect: {count}")
 
 
-download_pdf()
+try:
+    csv_file_paths = [
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
+    ]
+except FileNotFoundError as err:
+    raise FileNotFoundError("Please provide the correct file paths.") from err
+
+
+def explode_csv(*csv_files):
+    """
+    Explode the CSV files to get the authors in separate rows.
+    """
+    try:
+        for csv_file in csv_files:
+            df = pd.read_csv(csv_file)
+            df["Authors"] = df["Authors"].str.split(",")
+            df = df.explode("Authors")
+            df.to_csv(csv_file, index=False)
+            print(f"Exploded CSV saved to {csv_file}.")
+    except Exception as e:
+        print(f"Error exploding CSV files: {e}")
+
+
+def main():
+    download_pdf()
+    explode_csv(*csv_file_paths)
