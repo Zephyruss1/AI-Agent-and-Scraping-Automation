@@ -386,28 +386,27 @@ def fill_empty_emails_with_search():
 
         # WebSearch using Perplexity
         for _index, row in _csv.iterrows():
-            author_names = row["Authors"]
+            author_name = row["Authors"]
             email_row = row["email"]
             if pd.notna(email_row) and email_row.strip():
                 print(
-                    f"     [INFO] Email already exists for this [Author: {author_names}]. Skipping..."
+                    f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping..."
                 )
                 continue
-            for author_name in author_names.split(","):
-                print(f"Processing author: {author_name}")
 
-                # Step 5: Search for email addresses using the AI Search
-                web_search = WebSearch(name=str(author_name), csv_file=_csv)
-                list_of_emails = web_search.ai_search()
+            print(f"Processing author: {author_name}")
 
-                # Step 6: Find similarity between the author names and emails
-                df_csv = _load_csv(file_name=csv_file_path)
-                similarity_finder = FindSimilarity(
-                    csv_file=df_csv, csv_file_path=csv_file_path
-                )
-                similarity_finder.find_email_author_and_save(list_of_emails)
-                print("-----" * 15)
-                # import sys; sys.exit()
+            # Step 5: Search for email addresses using the AI Search
+            web_search = WebSearch(name=str(author_name), csv_file=_csv)
+            list_of_emails = web_search.ai_search()
+
+            # Step 6: Find similarity between the author names and emails
+            df_csv = _load_csv(file_name=csv_file_path)
+            similarity_finder = FindSimilarity(
+                csv_file=df_csv, csv_file_path=csv_file_path
+            )
+            similarity_finder.find_email_author_and_save(list_of_emails)
+            print("-----" * 15)
 
 
 if __name__ == "__main__":
