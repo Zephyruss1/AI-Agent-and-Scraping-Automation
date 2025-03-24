@@ -13,7 +13,7 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
 
     Args:
         results (List[Dict]): A list of dictionaries containing article details. Each dictionary
-            should have keys like 'title', 'link', 'description', 'authors', and 'published_date'.
+            should have keys like 'Title', 'Link', 'Description', 'Authors', and 'Date'.
             Missing keys default to 'null'.
         _keyword (str): The search keyword used to generate the results, added to each row.
 
@@ -40,12 +40,12 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
         return
 
     headers = [
-        "title",
-        "link",
-        "description",
-        "authors",
-        "published_date",
-        "keyword",
+        "Title",
+        "Link",
+        "Description",
+        "Authors",
+        "Date",
+        "Keyword",
     ]
 
     # Open the file and write the headers and rows
