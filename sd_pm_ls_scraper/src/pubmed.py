@@ -92,7 +92,7 @@ def fetch_pubmed_details_batch(id_list, batch_size=200):
 
 
 # Extract information and save to CSV
-def save_articles_to_csv(records, filename=CSV_FILE):
+def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
     """Save PubMed records to a CSV file
     Args:
         records (list): List of PubMed records
@@ -113,6 +113,7 @@ def save_articles_to_csv(records, filename=CSV_FILE):
                 "Paper Link",
                 "PMC Full Text URL",
                 "DOI",
+                "Keyword",
             ]
         )
 
@@ -155,6 +156,7 @@ def save_articles_to_csv(records, filename=CSV_FILE):
                         pubmed_url,
                         pmc_url,
                         doi,
+                        _keyword,
                     ]
                 )
 
@@ -182,7 +184,7 @@ if __name__ == "__main__":
         print(f"Found {len(pubmed_ids)} total PubMed IDs")
         pubmed_records = fetch_pubmed_details_batch(pubmed_ids)
         print(f"Successfully fetched details for {len(pubmed_records)} records")
-        save_articles_to_csv(pubmed_records)
+        save_articles_to_csv(pubmed_records, _keyword=search_term)
         print(f"PubMed articles saved to '{CSV_FILE}'")
     else:
         print("No articles found.")

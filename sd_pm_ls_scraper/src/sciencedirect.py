@@ -11,6 +11,8 @@ API_KEY = os.getenv("ELSEVIER_API_KEY")
 INSTTOKEN = os.getenv("ELSEVIER_INSTTOKEN")
 
 
+# TODO: Lookup full author names in search API
+# FIXME: Pubmed csv 'Affiliations' missing after filtering data in src/filter_and_download_data.py
 def make_request(
     search_query: str, start_year: str, end_year: str, max_papers: int = 10
 ) -> list:
@@ -104,7 +106,7 @@ def make_request(
     return results[:max_papers]
 
 
-def save_csv(results: list) -> None:
+def save_csv(results: list, _keyword: str) -> None:
     if results:
         os.makedirs(
             "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output", exist_ok=True
@@ -117,7 +119,8 @@ def save_csv(results: list) -> None:
             "Source",
             "Date",
             "Paper Link",
-            "openaccess",
+            "Openaccess",
+            "Keyword",
         ]
         with open(
             "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
@@ -161,6 +164,7 @@ def save_csv(results: list) -> None:
                         date,
                         paper_link,
                         open_access,
+                        _keyword,
                     ]
                 )
 
@@ -179,4 +183,4 @@ if __name__ == "__main__":
 
     results = make_request(search_term, start_date, end_date, max_papers)
     print(f"Total articles retrieved: {len(results)}")
-    save_csv(results)
+    save_csv(results, _keyword=search_term)
