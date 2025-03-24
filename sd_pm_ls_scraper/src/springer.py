@@ -265,7 +265,7 @@ class SpringerScraper:
                 print(f"Error processing article {i}: {e}")
                 continue
 
-    async def pagination(self, page, max_pages: int) -> None:
+    async def pagination(self, page, max_pages: int = None) -> None:
         """Handle pagination for Springer search results.
 
         Navigates through search result pages by clicking the "Next" button, gathering articles
