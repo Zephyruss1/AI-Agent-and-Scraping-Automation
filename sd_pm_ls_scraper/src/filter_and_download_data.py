@@ -17,11 +17,17 @@ os.makedirs(
     "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/pubmed",
     exist_ok=True,
 )
+os.makedirs(
+    "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/springer",
+    exist_ok=True,
+)
 BASE_DIR = "/root/arxiv-and-scholar-scraping"
+
 PDF_DIR_SCIENCEDIRECT = os.path.join(
     BASE_DIR, "sd_pm_ls_scraper/output/pdfs/sciencedirect"
 )
 PDF_DIR_PUBMED = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pdfs/pubmed")
+PDF_DIR_SPRINGER = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pdfs/springer")
 
 # Load the API key and institution token
 API_KEY = os.getenv("ELSEVIER_API_KEY")
@@ -41,15 +47,17 @@ try:
     pubmed_path = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results.csv")
     pubmed_csv = pd.read_csv(pubmed_path)
     print("PubMed data loaded successfully.")
-
 except Exception as e:
     print(f"Error loading PubMed data: {e}")
 
-# try:
-#     springer_path = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/springer_results.csv")
-#     print("SpringerLink data loaded successfully.")
-# except Exception as e:
-#     print(f"Error loading SpringerLink data: {e}")
+try:
+    springer_path = os.path.join(
+        BASE_DIR, "sd_pm_ls_scraper/output/springer_results.csv"
+    )
+    springer_csv = pd.read_csv(springer_path)
+    print("SpringerLink data loaded successfully.")
+except Exception as e:
+    print(f"Error loading SpringerLink data: {e}")
 
 
 def reformat_datetime(data: pd.DataFrame) -> pd.DataFrame:
@@ -66,42 +74,58 @@ def reformat_datetime(data: pd.DataFrame) -> pd.DataFrame:
 
 pubmed = reformat_datetime(pubmed_csv)
 sciencedirect = reformat_datetime(sciencedirect_csv)
+springer = reformat_datetime(springer_csv)
 
 
 def compare_authors(
-    data1: pd.DataFrame, data2: pd.DataFrame, output1: str, output2: str
+    data1: pd.DataFrame,
+    data2: pd.DataFrame,
+    data3: pd.DataFrame,
+    output1: str,
+    output2: str,
+    output3: str,
 ):
     """
-    Compare authors between two datasets and keep only the latest paper for each author.
+    Compare authors between three datasets and keep only the latest paper for each author.
     """
 
     try:
         # Ensure the Date column is in datetime format
         data1["Date"] = pd.to_datetime(data1["Date"], errors="coerce")
         data2["Date"] = pd.to_datetime(data2["Date"], errors="coerce")
+        data3["Date"] = pd.to_datetime(data3["Date"], errors="coerce")
 
-        # Merge the two datasets on the Authors column
+        # Merge the three datasets on the Authors column
         merged = pd.merge(
-            data1, data2, on="Authors", suffixes=("_1", "_2"), how="outer"
+            pd.merge(data1, data2, on="Authors", suffixes=("_1", "_2"), how="outer"),
+            data3,
+            on="Authors",
+            suffixes=("", "_3"),
+            how="outer",
         )
 
         # Determine the latest paper for each author
-        merged["Latest_Date"] = merged[["Date_1", "Date_2"]].max(axis=1)
+        merged["Latest_Date"] = merged[["Date_1", "Date_2", "Date"]].max(axis=1)
 
-        # Filter rows to keep only the latest papers
+        # Filter rows to keep only the latest papers for each dataset
         data1_filtered = merged[merged["Date_1"] == merged["Latest_Date"]].drop(
-            columns=["Date_2", "Latest_Date"]
+            columns=["Date_2", "Date", "Latest_Date"]
         )
         data2_filtered = merged[merged["Date_2"] == merged["Latest_Date"]].drop(
-            columns=["Date_1", "Latest_Date"]
+            columns=["Date_1", "Date", "Latest_Date"]
+        )
+        data3_filtered = merged[merged["Date"] == merged["Latest_Date"]].drop(
+            columns=["Date_1", "Date_2", "Latest_Date"]
         )
 
         # Save the filtered datasets to CSV
         data1_filtered.to_csv(output1, index=False)
         data2_filtered.to_csv(output2, index=False)
+        data3_filtered.to_csv(output3, index=False)
 
         print(f"Filtered data saved to {output1}.")
         print(f"Filtered data saved to {output2}.")
+        print(f"Filtered data saved to {output3}.")
     except Exception as e:
         print(f"Error in compare_authors: {e}")
 
@@ -110,8 +134,10 @@ def compare_authors(
 compare_authors(
     pubmed,
     sciencedirect,
+    springer,
     os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results.csv"),
     os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results.csv"),
+    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/springer_results.csv"),
 )
 
 
@@ -121,6 +147,7 @@ def _load_filtered_csv():
     """
     os.makedirs(PDF_DIR_PUBMED, exist_ok=True)
     os.makedirs(PDF_DIR_SCIENCEDIRECT, exist_ok=True)
+    os.makedirs(PDF_DIR_SPRINGER, exist_ok=True)
 
     try:
         pubmed_filtered = pd.read_csv(
@@ -129,13 +156,16 @@ def _load_filtered_csv():
         sciencedirect_filtered = pd.read_csv(
             "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv"
         )
-        return pubmed_filtered, sciencedirect_filtered
+        springer_filtered = pd.read_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv"
+        )
+        return pubmed_filtered, sciencedirect_filtered, springer_filtered
     except FileNotFoundError as e:
         print(f"Error loading filtered CSV files: {e}")
 
 
 def download_pdf() -> str:
-    """ "Download the PDF from the PMC Full Text URL."""
+    """Download the PDF from the PMC Full Text URL."""
     try:
         import time
 
@@ -143,8 +173,8 @@ def download_pdf() -> str:
     except NotImplementedError as e:
         print(f"Error importing requests: {e}")
 
-    pubmed_df, sciencedirect_df = _load_filtered_csv()
-
+    pubmed_df, sciencedirect_df, springer_df = _load_filtered_csv()
+    # Download PDFs from PubMed
     count = 0
     for _index, row in pubmed_df.iterrows():
         pmc_url = row["PMC Full Text URL"]
@@ -176,6 +206,7 @@ def download_pdf() -> str:
             print(f"    [INFO]⚠️ Invalid PMC URL format: {pmc_url}")
     print(f"Total downloaded pdf from Pubmed: {count}")
 
+    # Download PDFs from ScienceDirect
     count = 0
     headers = {
         "X-ELS-APIKey": API_KEY,
@@ -215,11 +246,42 @@ def download_pdf() -> str:
 
     print(f"\nTotal PDFs downloaded from ScienceDirect: {count}")
 
+    # Download PDFs from SpringerLink
+    count = 0
+    for _index, row in springer_df.iterrows():
+        pdf_url = row["Link"]
+        if "link.springer.com" in pdf_url:
+            doi_code = pdf_url.split("article/")[1] + ".pdf"
+            pdf_url = f"https://link.springer.com/content/pdf/{doi_code}"
+            print(
+                f"    [INFO]💭 Visiting paper link {_index + 1}/{len(springer_df)}: {pdf_url}"
+            )
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+            }
+            response = requests.get(pdf_url, headers=headers, stream=True)
+            if response.status_code == 200:
+                # Form the filename correctly
+                pdf_filename = os.path.join(
+                    PDF_DIR_SPRINGER, f"{doi_code.replace('/', '_')}"
+                )
+                with open(pdf_filename, "wb") as pdf_file:
+                    for chunk in response.iter_content(chunk_size=1024):
+                        pdf_file.write(chunk)
+                print(f"    [INFO]✅ PDF downloaded: {pdf_filename}")
+                count += 1
+            else:
+                print(f"    [INFO]⚠️ No free PDF found for {pdf_url}")
+                response.raise_for_status()
+        else:
+            print(f"    [INFO]⚠️ Invalid SpringerLink URL format: {pdf_url}")
+
 
 try:
     csv_file_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv",
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv",
     ]
 except FileNotFoundError as err:
     raise FileNotFoundError("Please provide the correct file paths.") from err
@@ -243,3 +305,7 @@ def explode_csv(*csv_files):
 def main():
     download_pdf()
     explode_csv(*csv_file_paths)
+
+
+if __name__ == "__main__":
+    main()
