@@ -141,6 +141,55 @@ compare_authors(
 )
 
 
+def filter_data(
+    data1: pd.DataFrame,
+    data2: pd.DataFrame,
+    data3: pd.DataFrame,
+    output1: str,
+    output2: str,
+    output3: str,
+) -> None:
+    """Filter the data by dropping columns where all values are NaN or empty strings."""
+    try:
+        # Replace empty strings with NaN in all DataFrames
+        data1.replace("", pd.NA, inplace=True)
+        data2.replace("", pd.NA, inplace=True)
+        data3.replace("", pd.NA, inplace=True)
+
+        # Drop columns where all values are NaN in each table
+        data1.dropna(axis=1, how="all", inplace=True)
+        data2.dropna(axis=1, how="all", inplace=True)
+        data3.dropna(axis=1, how="all", inplace=True)
+
+    except Exception as err:
+        raise Exception(f"Error filtering data: {err}") from err
+
+    finally:
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(output1), exist_ok=True)
+        os.makedirs(os.path.dirname(output2), exist_ok=True)
+        os.makedirs(os.path.dirname(output3), exist_ok=True)
+
+        # Save to CSV without writing the header if the DataFrame is empty
+        data1.to_csv(output1, index=False, header=not data1.empty)
+        data2.to_csv(output2, index=False, header=not data2.empty)
+        data3.to_csv(output3, index=False, header=not data3.empty)
+
+        print(f"Filtered data saved to {output1}.")
+        print(f"Filtered data saved to {output2}.")
+        print(f"Filtered data saved to {output3}.")
+
+
+filter_data(
+    pubmed,
+    sciencedirect,
+    springer,
+    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results.csv"),
+    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results.csv"),
+    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/springer_results.csv"),
+)
+
+
 def _load_filtered_csv():
     """
     Load the filtered CSV files.
