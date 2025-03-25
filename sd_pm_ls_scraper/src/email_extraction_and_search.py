@@ -400,12 +400,6 @@ def fill_empty_emails_with_search():
                 keyword = row["Keyword"]
 
             author_name = row["Authors"]
-            email_row = row["email"]  # Access the 'email' column
-            if pd.notna(email_row) and email_row.strip():
-                print(
-                    f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping..."
-                )
-                continue
 
             print(f"Processing author: {author_name}")
 
