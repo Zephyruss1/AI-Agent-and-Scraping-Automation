@@ -141,6 +141,7 @@ class WebSearch:
         self,
         name: str,
         csv_file: pd.DataFrame,
+        _keyword: str,
         config: Optional[PerplexityConfig] = None,
     ) -> None:
         if config is None:
@@ -149,14 +150,10 @@ class WebSearch:
         self.config = config
         self.author_name = name
         self.csv_file = csv_file
+        self.keyword_index = _keyword
 
-        self.headers = [header for header in csv_file.columns]
-
-        self.keyword_index = "microbial kinetics AND CFU"
-        for i, header in enumerate(self.headers):
-            if header == "keyword":
-                self.keyword_index = i
-                break
+        if "AND" in self.keyword:
+            self.keyword = self.keyword.split("AND")[0].strip()
 
     def ai_search(self) -> str:
         """Search for email addresses using the AI search."""
@@ -199,7 +196,7 @@ class WebSearch:
             response = requests.post(
                 self.config.url, headers=self.config.get_headers(), json=payload
             )
-
+            print(f"Prompt: {payload.get('messages')[1].get('content')}")
             if response.status_code == 200:
                 try:
                     response_json = response.json()
@@ -252,7 +249,7 @@ class WebSearch:
             return result.final_result().split("\n")
 
         # Build the search pipeline with the desired methods
-        search_pipeline = build_search_pipeline(perplexity_search, browser_use)
+        search_pipeline = build_search_pipeline(perplexity_search)
 
         # Execute the pipeline
         return search_pipeline()
@@ -333,6 +330,7 @@ def extract_emails_from_pdf():
     pdf_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/sciencedirect/",
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/pubmed/",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/springer/",
     ]
 
     for pdf_path in pdf_paths:
@@ -346,8 +344,10 @@ def extract_emails_from_pdf():
         # Step 2: Determine which CSV to load based on the PDF path
         if "sciencedirect" in pdf_path:
             csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv"
-        else:
+        elif "pubmed" in pdf_path:
             csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
+        else:
+            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv"
 
         # Load the CSV file and initialize FindSimilarity class with the file path
         df_csv = _load_csv(file_name=csv_file_path)
@@ -372,24 +372,35 @@ def fill_empty_emails_with_search():
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv",
     ]
 
     for csv_path in csv_paths:
         _csv = _load_csv(file_name=csv_path)
 
         headers = [header for header in _csv.columns]
-        if "emails" not in headers:
-            _csv["emails"] = ""
+        if "email" not in headers:  # Ensure the column name matches
+            _csv["email"] = ""  # Add the 'email' column if missing
 
         if "sciencedirect" in csv_path:
             csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv"
-        else:
+        elif "pubmed" in csv_path:
             csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
+        else:
+            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv"
 
-        # WebSearch using Perplexity
+        # Step 5: Search for email addresses using the AI Search
         for _index, row in _csv.iterrows():
+            keyword = ""
+            if "sciencedirect" in csv_path:
+                keyword = row["Keyword_2"]
+            elif "pubmed" in csv_path:
+                keyword = row["Keyword_1"]
+            elif "springer" in csv_path:
+                keyword = row["Keyword"]
+
             author_name = row["Authors"]
-            email_row = row["email"]
+            email_row = row["email"]  # Access the 'email' column
             if pd.notna(email_row) and email_row.strip():
                 print(
                     f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping..."
@@ -398,8 +409,9 @@ def fill_empty_emails_with_search():
 
             print(f"Processing author: {author_name}")
 
-            # Step 5: Search for email addresses using the AI Search
-            web_search = WebSearch(name=str(author_name), csv_file=_csv)
+            web_search = WebSearch(
+                name=str(author_name), csv_file=_csv, _keyword=keyword
+            )
             list_of_emails = web_search.ai_search()
 
             # Step 6: Find similarity between the author names and emails
