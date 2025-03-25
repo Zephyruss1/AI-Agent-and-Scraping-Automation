@@ -11,8 +11,6 @@ API_KEY = os.getenv("ELSEVIER_API_KEY")
 INSTTOKEN = os.getenv("ELSEVIER_INSTTOKEN")
 
 
-# TODO: Lookup full author names in search API
-# FIXME: Pubmed csv 'Affiliations' missing after filtering data in src/filter_and_download_data.py
 def make_request(
     search_query: str, start_year: str, end_year: str, max_papers: int = 18000
 ) -> list:
