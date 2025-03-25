@@ -13,7 +13,7 @@ os.makedirs(PDF_DIR, exist_ok=True)
 CSV_FILE = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
 
 
-def search_pubmed(query, max_results=25500, date_ranges: list = None):
+def search_pubmed(query, max_results: int = None, date_ranges: list = None):
     if not date_ranges:
         date_ranges = [("1900/01/01", "2050/12/31")]
     """Search PubMed
@@ -173,11 +173,13 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
 
 if __name__ == "__main__":
     # Example usage: search_pubmed_with_date_ranges("bacterial growth AND antibiotics", [("2010/01/01", "2020/12/31")])
-    search_term = "microbial kinetics AND CFU"
+    search_term = "bacteria AND Plant pathology AND Insecticides"
     date_ranges = [
         ("1900/01/01", "2025/12/31"),
         ("2026/01/01", "2050/12/31"),
     ]
+    max_results = 1000
+
     pubmed_ids = search_pubmed(search_term, date_ranges=date_ranges)
     print(f"Searching with term '{search_term}'")
     if pubmed_ids:
