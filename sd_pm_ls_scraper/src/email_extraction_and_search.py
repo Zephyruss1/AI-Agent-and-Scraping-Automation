@@ -152,8 +152,8 @@ class WebSearch:
         self.csv_file = csv_file
         self.keyword_index = _keyword
 
-        if "AND" in self.keyword:
-            self.keyword = self.keyword.split("AND")[0].strip()
+        if "AND" in self.keyword_index:
+            self.keyword_index = self.keyword_index.split("AND")[0].strip()
 
     def ai_search(self) -> str:
         """Search for email addresses using the AI search."""
