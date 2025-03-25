@@ -281,7 +281,8 @@ class FindSimilarity:
             self.csv_file["email"] = ""
 
         for email in list_of_emails:
-            if "None" in email or email.startswith("protected") or "*" in email:
+            if "None" in email or "protected" in email or "*" in email:
+                list_of_emails = "None"
                 continue
 
             print(f"Processing email: {email}")
@@ -315,6 +316,7 @@ class FindSimilarity:
                     match_found = True
 
             if not match_found:
+                print(f"No match found for email: {email}")
                 new_row = {"Authors": "", "email": email}
                 self.csv_file = pd.concat(
                     [self.csv_file, pd.DataFrame([new_row])], ignore_index=True
