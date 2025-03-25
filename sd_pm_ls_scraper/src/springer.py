@@ -80,47 +80,22 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
 
 
 class SpringerScraper:
-    """
-    SpringerScraper is an asynchronous web scraper designed to gather research articles from the Springer website
-    based on a specified keyword. It handles cookie consent dialogs, connects to the Springer search page, and
-    extracts article details such as title, link, description, authors, and published date. This class uses
-    Playwright for navigating the webpage and scraping content asynchronously.
-
-    Attributes:
-        keyword (str): The keyword used to perform the search on Springer. Spaces in the keyword are replaced
-                      with '+' for URL compatibility.
-        url (str): The URL constructed using the keyword to query Springer for research articles.
-        articles (list): A list of dictionaries containing information about the gathered articles.
-        page (Page): A reference to the current Playwright page object.
-
-    Methods:
-        __init__(self, keyword: str):
-            Initializes the SpringerScraper instance with the given keyword and constructs the search URL.
-
-        async _check_cookies(self, page):
-            Handles the cookie consent dialog on the Springer webpage if it appears.
-
-        async connecting_to_springer(self, page):
-            Navigates to the Springer search page and handles the cookie consent dialog, ensuring the page
-            is fully loaded before proceeding.
-
-        async searching_and_gathering_papers(self, page):
-            Performs the search on Springer, waits for the list of articles to load, and extracts details
-            from each article found. Adds the article information to the `self.articles` list.
-    """
-
-    def __init__(self, keyword: str):
+    def __init__(self, keyword: str, max_results: int = None):
         """
         Initializes a SpringerScraper instance with a keyword and constructs the search URL.
 
         Args:
             keyword (str): The search term to query Springer for articles. Spaces are replaced with '+'
                            to form a valid URL query parameter.
+            max_results (int, optional): Maximum number of results to scrape.
         """
         self.keyword = keyword.replace(" ", "+") if " " in keyword else keyword
-        self.url = f"https://link.springer.com/search?new-search=true&query={self.keyword}&content-type=research"
+        self.base_url = "https://link.springer.com/search"
+        self.url = f"{self.base_url}?new-search=true&query={self.keyword}&content-type=research"
         self.articles = []
         self.page = None
+        self.max_results = max_results
+        self.unique_links = set()  # Track unique article links
 
     async def _check_cookies(self, page):
         """
@@ -128,9 +103,6 @@ class SpringerScraper:
 
         Args:
             page (Page): The Playwright page object representing the current browser tab.
-
-        Raises:
-            Exception: Prints an error message if the cookie dialog is not found or has already been closed.
         """
         try:
             await page.wait_for_selector("xpath=/html/body/dialog", timeout=5000)
@@ -142,43 +114,18 @@ class SpringerScraper:
         except Exception as e:
             print(f"Cookie dialog not found or already closed: {e}")
 
-    async def connecting_to_springer(self, page):
-        """
-        Connects to the Springer search page and handles the cookie consent dialog, if present.
-
-        Args:
-            page (Page): The Playwright page object representing the current browser tab.
-
-        Raises:
-            Exception: If there is an error navigating to the URL or loading the page.
-        """
-        print("\n📍 Step 1: Connecting to Springer!")
-        try:
-            await page.goto(self.url)
-            await self._check_cookies(page)
-            await page.wait_for_load_state("networkidle")
-            print("     [INFO] Connected to Springer successfully!")
-        except Exception as err:
-            raise Exception(f"Failed to connect to Springer: {err}") from err
-
     async def searching_and_gathering_papers(self, page):
         """
         Performs a search on Springer and gathers research articles from the search results page.
-
-        The method extracts details from each article, including title, link, description, authors, and
-        published date, and appends the gathered information to the `self.articles` list.
-
-        Args:
-            page (Page): The Playwright page object representing the current browser tab.
-
-        Raises:
-            Exception: Prints an error if the list of articles fails to load.
         """
-        print("\n📍 Step 2: Gathering papers!")
+        # Check if we've reached max results
+        if self.max_results and len(self.articles) >= self.max_results:
+            print("     [INFO] Maximum results reached. Skipping search.")
+            return False
+
+        print("\n📍 Step: Gathering papers!")
         self.page = page  # Store page reference if needed later
 
-        await page.goto(self.url)
-        await self._check_cookies(page)
         await page.wait_for_load_state("networkidle")
 
         # Wait for article list to load
@@ -188,7 +135,7 @@ class SpringerScraper:
             )
         except Exception as e:
             print(f"Failed to load article list: {e}")
-            return
+            return False
 
         articles = await page.query_selector_all(
             'xpath=//*[@id="main"]/div/div/div/div[2]/div[4]/ol/li'
@@ -198,27 +145,35 @@ class SpringerScraper:
             print(
                 "No articles found. Check if the selector is correct or if content is loaded."
             )
-            return
+            return False
 
-        print(f"Found {len(articles)} articles")
-        print("\n📍 Step 2: Gathering articles!")
+        print(f"Found {len(articles)} articles on this page")
+        new_articles_found = False
 
-        total_found = 0
         for i, article in enumerate(articles):
+            # Stop if max results is reached
+            if self.max_results and len(self.articles) >= self.max_results:
+                break
+
             try:
-                # Extract article details with improved error handling
+                # Extract article details
+                title_link_element = await article.query_selector("xpath=.//div/h3/a")
+                if not title_link_element:
+                    continue
+
+                title_link = await title_link_element.get_attribute("href")
+                full_link = f"https://link.springer.com{title_link}"
+
+                # Skip if link is already scraped
+                if full_link in self.unique_links:
+                    continue
+
+                # Extract other details
                 title_element = await article.query_selector("xpath=.//div/h3")
                 title = (
                     await title_element.text_content()
                     if title_element
                     else "No title found"
-                )
-
-                title_link_element = await article.query_selector("xpath=.//div/h3/a")
-                title_link = (
-                    await title_link_element.get_attribute("href")
-                    if title_link_element
-                    else None
                 )
 
                 description_element = await article.query_selector("xpath=.//div/p")
@@ -246,78 +201,75 @@ class SpringerScraper:
                     else "No published date found"
                 )
 
-                # Print and append article
-                print(f"\nFound Article {i + 1}")
-                total_found += 1
-                self.articles.append(
-                    {
-                        "title": title.strip(),
-                        "link": f"https://link.springer.com{title_link}"
-                        if title_link
-                        else "No link found",
-                        "description": description.strip(),
-                        "authors": authors.strip(),
-                        "published_date": published_date.strip(),
-                    }
-                )
+                # Add article and track unique link
+                article_info = {
+                    "title": title.strip(),
+                    "link": full_link,
+                    "description": description.strip(),
+                    "authors": authors.strip(),
+                    "published_date": published_date.strip(),
+                }
+
+                self.articles.append(article_info)
+                self.unique_links.add(full_link)
+                new_articles_found = True
 
             except Exception as e:
                 print(f"Error processing article {i}: {e}")
-                continue
+
+        return new_articles_found
 
     async def pagination(self, page, max_pages: int = None) -> None:
-        """Handle pagination for Springer search results.
-
-        Navigates through search result pages by clicking the "Next" button, gathering articles
-        from each page until there are no more pages, an error occurs, or the maximum number
-        of pages is reached. Updates the `self.articles` list with new articles found on each page.
+        """
+        Handle pagination for Springer search results with improved tracking.
 
         Args:
             page: The Playwright page object used for browser interaction.
-            max_pages (int): Maximum number of pages to navigate. If 0 or None, no limit is applied.
-
-        Returns:
-            None: This method modifies the `self.articles` list in place and does not return a value.
-
-        Raises:
-            Exception: Propagates any errors encountered during navigation or article gathering,
-                with an error message printed to the console.
-
-        Notes:
-            - Uses an XPath selector to locate the "Next" button on the Springer search page.
-            - Checks for the `aria-disabled` attribute to determine if there are more pages.
-            - Calls `searching_and_gathering_papers` to collect articles from each new page.
-            - Prints informational messages about pagination progress and completion.
+            max_pages (int): Maximum number of pages to navigate.
         """
-        paginated = 0
+        current_page = 1
         while True:
-            if max_pages and paginated >= max_pages:
-                print("     [INFO] Reached maximum pages to navigate.")
-                break
-            try:
-                # Check for next page button
-                next_page_button = await page.query_selector(
-                    'xpath=//*[@id="main"]/div/div/div/div[2]/nav/ul/li[8]/a'
+            # Check stopping conditions
+            if (max_pages and current_page > max_pages) or (
+                self.max_results and len(self.articles) >= self.max_results
+            ):
+                print(
+                    f"     [INFO] Stopping pagination. "
+                    f"Current page: {current_page}, "
+                    f"Total articles: {len(self.articles)}"
                 )
+                break
 
-                if (
-                    not next_page_button
-                    or await next_page_button.get_attribute("aria-disabled") == "true"
-                ):
-                    print("     [INFO] No more pages to navigate.")
-                    break
+            try:
+                # Construct paginated URL
+                paginated_url = f"{self.base_url}?new-search=true&query={self.keyword}&content-type=research&page={current_page}"
+                print(f"     [INFO] Navigating to page {current_page}: {paginated_url}")
 
-                print("     [INFO] Navigating to the next page...")
-                await next_page_button.click()
+                # Navigate to the paginated URL
+                await page.goto(paginated_url)
                 await page.wait_for_load_state("networkidle")
 
-                # Gather articles from the new page
-                await self.searching_and_gathering_papers(page)
-                paginated += 1
+                # Small delay to ensure page is loaded
+                await asyncio.sleep(2)
+
+                # Try to gather articles
+                new_articles = await self.searching_and_gathering_papers(page)
+
+                # If no new articles found, break pagination
+                if not new_articles:
+                    print("     [INFO] No new articles found. Stopping pagination.")
+                    break
+
+                # Increment page counter
+                current_page += 1
+
             except Exception as err:
                 print(f"Error during pagination: {err}")
                 break
-        print("     [INFO] Finished pagination. Total pages navigated:", paginated)
+
+        print(
+            f"     [INFO] Pagination complete. Total pages: {current_page - 1}, Total unique articles: {len(self.articles)}"
+        )
 
 
 async def async_springer():
@@ -326,45 +278,41 @@ async def async_springer():
             "--no-sandbox",
             "--disable-blink-features=AutomationControlled",
             "--disable-infobars",
-            "--disable-background-timer-throttling",
-            "--disable-popup-blocking",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
-            "--disable-window-activation",
-            "--disable-focus-on-load",
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--no-startup-window",
-            "--window-position=960,700",
         ]
 
         browser = await pw.chromium.launch(headless=False, args=args)
         context = await browser.new_context(viewport={"width": 1280, "height": 720})
         page = await context.new_page()
 
-        all_articles = []
+        search_term = "bacteria AND Plant pathology AND Insecticides"
+        max_papers = 1000
 
-        search_term = "machine learning"
-        SpringerScraper_obj = SpringerScraper(search_term)
+        SpringerScraper_obj = SpringerScraper(search_term, max_results=max_papers)
+
         try:
-            await SpringerScraper_obj.connecting_to_springer(page)
-            await SpringerScraper_obj.searching_and_gathering_papers(page)
-            await SpringerScraper_obj.pagination(page, max_pages=2)
-            all_articles.extend(SpringerScraper_obj.articles)
+            # Navigate to initial search page
+            await page.goto(SpringerScraper_obj.url)
+            await SpringerScraper_obj._check_cookies(page)
+
+            # Perform pagination
+            await SpringerScraper_obj.pagination(page, max_pages=20)
+
+            # Save results
+            if SpringerScraper_obj.articles:
+                print(
+                    f"\nSaving {len(SpringerScraper_obj.articles)} total unique articles to CSV file..."
+                )
+                await _save_to_csv(SpringerScraper_obj.articles, _keyword=search_term)
+            else:
+                print("No articles found.")
+
         except Exception as err:
             await page.screenshot(path="unexpected_error.png")
-            raise Exception(f"An unexpected error occurred: {err}") from err
+            print(f"An unexpected error occurred: {err}")
 
         finally:
             print("\nClosing browser...")
             await browser.close()
-
-            if all_articles:
-                print(
-                    f"\nSaving {len(all_articles)} total articles saving to CSV file..."
-                )
-                await _save_to_csv(all_articles, _keyword=search_term)
-                print("No articles found for any keywords.")
 
 
 if __name__ == "__main__":
