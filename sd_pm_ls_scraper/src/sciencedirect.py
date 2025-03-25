@@ -14,7 +14,7 @@ INSTTOKEN = os.getenv("ELSEVIER_INSTTOKEN")
 # TODO: Lookup full author names in search API
 # FIXME: Pubmed csv 'Affiliations' missing after filtering data in src/filter_and_download_data.py
 def make_request(
-    search_query: str, start_year: str, end_year: str, max_papers: int = 10
+    search_query: str, start_year: str, end_year: str, max_papers: int = 18000
 ) -> list:
     """
     Fetch ScienceDirect articles with a date range filter.
@@ -99,6 +99,7 @@ def make_request(
             else:
                 print(f"Unexpected status code: {response.status_code}")
                 break
+            time.sleep(1)
         except Exception as e:
             print(f"Error: {e}")
             break
@@ -135,11 +136,17 @@ def save_csv(results: list, _keyword: str) -> None:
                 title = doc.get("dc:title", "N/A")
                 doi = doc.get("prism:doi", "N/A")
 
-                authors = doc.get("authors", {}).get("author", [])
-                if isinstance(authors, list):
-                    author_names = [author.get("$", "Unknown") for author in authors]
-                elif isinstance(authors, dict):
-                    author_names = [authors.get("$", "Unknown")]
+                authors_data = doc.get("authors")
+                if authors_data and isinstance(authors_data, dict):
+                    authors = authors_data.get("author", [])
+                    if isinstance(authors, list):
+                        author_names = [
+                            author.get("$", "Unknown") for author in authors
+                        ]
+                    elif isinstance(authors, dict):
+                        author_names = [authors.get("$", "Unknown")]
+                    else:
+                        author_names = ["N/A"]
                 else:
                     author_names = ["N/A"]
                 formatted_authors = ", ".join(author_names)
