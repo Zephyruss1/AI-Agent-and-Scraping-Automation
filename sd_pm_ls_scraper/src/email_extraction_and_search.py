@@ -309,8 +309,10 @@ class FindSimilarity:
                     print(f"Match Found: {author_name} | {cosine_sim[0][0]}")
                     current_email = self.csv_file.at[_index, "email"]
                     if pd.notna(current_email) and current_email:
-                        new_email = f"{current_email}, {email}"
-                        self.csv_file.at[_index, "email"] = new_email
+                        if email not in current_email:
+                            if email not in row["email"]:
+                                new_email = f"{current_email}, {email}"
+                                self.csv_file.at[_index, "email"] = new_email
                     else:
                         self.csv_file.at[_index, "email"] = email
                     match_found = True
