@@ -188,7 +188,10 @@ class WebSearch:
                             "Output only the emails or 'None'—no additional explanations."
                         ),
                     },
-                    {"role": "user", "content": f"{self.author_name} email adress"},
+                    {
+                        "role": "user",
+                        "content": f"{self.author_name} email adress in the {self.keyword_index} field",
+                    },
                 ],
                 "temperature": self.config.temperature,
                 "response_format": {
