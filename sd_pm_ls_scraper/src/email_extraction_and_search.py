@@ -121,6 +121,8 @@ class PerplexityConfig:
 
     url: str = "https://api.perplexity.ai/chat/completions"
     model: str = "sonar-pro"
+    search_context_size: str = "Low"  # Low/Medium/High
+    temperature: float = 0.2
     api_key: str = field(default_factory=lambda: os.getenv("PERPLEXITY_API_KEY", ""))
 
     def get_headers(self) -> dict:
@@ -175,6 +177,7 @@ class WebSearch:
             print("\n📍 Step 8: [Perplexity] Extracting Email Addresses!")
             payload = {
                 "model": self.config.model,
+                "search_context_size": self.config.search_context_size,
                 "messages": [
                     {
                         "role": "system",
@@ -187,6 +190,7 @@ class WebSearch:
                     },
                     {"role": "user", "content": f"{self.author_name} email adress"},
                 ],
+                "temperature": self.config.temperature,
                 "response_format": {
                     "type": "json_schema",
                     "json_schema": {"schema": AnswerFormat.model_json_schema()},
