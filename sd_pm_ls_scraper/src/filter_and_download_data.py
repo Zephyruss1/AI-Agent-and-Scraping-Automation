@@ -118,7 +118,9 @@ def compare_authors(
             columns=["Date_1", "Date_2", "Latest_Date"]
         )
 
-        # Save the filtered datasets to CSV
+    except Exception as err:
+        raise Exception(f"Error in compare_authors: {err}") from err
+    finally:
         data1_filtered.to_csv(output1, index=False)
         data2_filtered.to_csv(output2, index=False)
         data3_filtered.to_csv(output3, index=False)
@@ -126,8 +128,6 @@ def compare_authors(
         print(f"Filtered data saved to {output1}.")
         print(f"Filtered data saved to {output2}.")
         print(f"Filtered data saved to {output3}.")
-    except Exception as e:
-        print(f"Error in compare_authors: {e}")
 
 
 # Call the function with the loaded DataFrames and output file paths
