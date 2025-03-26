@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 from dataclasses import dataclass, field
@@ -6,7 +7,9 @@ from typing import List, Optional
 import pandas as pd
 import pdfplumber
 import requests
+from browser_use import Agent, Browser, BrowserConfig
 from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -153,7 +156,9 @@ class WebSearch:
         self.author_name = name
         self.csv_file = csv_file
         self.keyword_index = _keyword
-
+        self.browser = Browser(
+            config=BrowserConfig(headless=True, disable_security=True)
+        )
         if "AND" in self.keyword_index:
             self.keyword_index = self.keyword_index.split("AND")[0].strip()
 
@@ -228,20 +233,6 @@ class WebSearch:
             """Search for email addresses using the browser-use."""
             print("\n📍 Step 8: [Browser-Use] Extracting Email Addresses!")
 
-            try:
-                import asyncio
-
-                from browser_use import Agent, Browser, BrowserConfig
-                from langchain_openai import ChatOpenAI
-            except ImportError as err:
-                raise ImportError(
-                    "Please install the required packages to run this function."
-                ) from err
-
-            browser = Browser(
-                config=BrowserConfig(headless=True, disable_security=True)
-            )
-
             agent = Agent(
                 task=f"""
                 1. Go to Google.com.
@@ -249,7 +240,7 @@ class WebSearch:
                 3. Output only the emails or 'None'—no additional explanations.
                 """,
                 llm=ChatOpenAI(model="gpt-4o"),
-                browser=browser,
+                browser=self.browser,
             )
             loop = asyncio.get_event_loop()
             result = loop.run_until_complete(agent.run())
