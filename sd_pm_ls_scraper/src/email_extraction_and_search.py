@@ -244,7 +244,12 @@ class WebSearch:
             )
             loop = asyncio.get_event_loop()
             result = loop.run_until_complete(agent.run())
-            return result.final_result().split("\n")
+
+            if hasattr(result, "final_result"):
+                res = result.final_result().split("\n")
+            else:
+                res = ["None"]
+            return res
 
         # Build the search pipeline with the desired methods
         search_pipeline = build_search_pipeline(perplexity_search)
