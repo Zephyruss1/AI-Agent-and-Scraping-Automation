@@ -1,4 +1,5 @@
 import asyncio
+import re
 from typing import Dict, List
 
 from playwright.async_api import async_playwright
@@ -191,6 +192,8 @@ class SpringerScraper:
                     if authors_element
                     else "No authors found"
                 )
+                authors = re.sub(r"\s+in\s.*$", "", authors)
+                authors = authors.replace("...", "").strip()
 
                 published_date_element = await article.query_selector(
                     "xpath=.//div/div[4]/div/span[1]"
