@@ -288,7 +288,7 @@ class FindSimilarity:
                 list_of_emails = "None"
                 continue
 
-            print(f"Processing email: {email}")
+            print(f"🔄🕒💭 Processing email: {email}")
             doc1 = self.preprocess_emails([email])
             match_found = False
 
@@ -306,28 +306,49 @@ class FindSimilarity:
 
                 cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
 
-                if cosine_sim[0][0] > 0.6:
-                    print(f"Match Found: {author_name} | {cosine_sim[0][0]}")
-                    current_email = self.csv_file.at[_index, "email"]
-                    if pd.notna(current_email) and current_email:
-                        if email not in current_email:
-                            if email not in row["email"]:
-                                new_email = f"{current_email}, {email}"
-                                self.csv_file.at[_index, "email"] = new_email
-                    else:
-                        self.csv_file.at[_index, "email"] = email
-                    match_found = True
+                try:
+                    if cosine_sim[0][0] > 0.6:
+                        print(
+                            f"    ✅ [INFO] Match Found: {author_name} | {cosine_sim[0][0]}"
+                        )
+                        current_email = row.get("email", "")
+
+                        if pd.notna(current_email) and current_email:
+                            if email in current_email:
+                                print(
+                                    "     ⚠️ [INFO] Email already exists in the CSV file. Continuing to next email."
+                                )
+                                break
+                            else:
+                                try:
+                                    new_email = f"{current_email}, {email}"
+                                    self.csv_file.at[_index, "email"] = new_email
+                                    print(
+                                        f"     🔄 [INFO] Updating email: {current_email} -> {email}"
+                                    )
+                                except Exception as err:
+                                    raise Exception(f"Error: {err}") from err
+                        else:
+                            self.csv_file.at[_index, "email"] = email
+                            [
+                                print(
+                                    f"     🔄 [INFO] Adding email: {email} to {author_name}"
+                                )
+                            ]
+                        match_found = True
+                except Exception as err:
+                    raise Exception(f"Error: {err}") from err
 
             if not match_found:
-                print(f"No match found for email: {email}")
+                print(f"    ❌ [INFO] No match found for email: {email}")
                 new_row = {"Authors": "", "email": email}
                 self.csv_file = pd.concat(
                     [self.csv_file, pd.DataFrame([new_row])], ignore_index=True
                 )
-
+            print("---" * 30)
         # Save the updated DataFrame to the same path
         self.csv_file.to_csv(self.csv_file_path, index=False)
-        print(f"    ✅ [INFO] Results saved to '{self.csv_file_path}'")
+        print(f"✅ [INFO] Results saved to: '{self.csv_file_path}'")
 
 
 def extract_emails_from_pdf():
