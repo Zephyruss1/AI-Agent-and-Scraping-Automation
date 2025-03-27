@@ -120,9 +120,15 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
         # Process each record and write to CSV
         record_count = 0
         for record in records:
+            filtered_author_list: list = []
             try:
                 title = record.get("TI", "No title available")
                 authors = record.get("FAU", ["No authors available"])
+                if "No authors available" in authors:
+                    for author in authors:
+                        firstname = author.split(",")[1].strip()
+                        lastname = author.split(",")[0].strip()
+                        filtered_author_list.append(f"{firstname} {lastname}")
                 affiliations = record.get("AD", ["No affiliations available"])
                 source = record.get("SO", "No source information")
                 pmid = record.get("PMID", "No PMID available")
@@ -150,7 +156,7 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
                     [
                         title,
                         source,
-                        " ".join(authors),
+                        ", ".join(filtered_author_list),
                         " ".join(affiliations),
                         pub_date,
                         pubmed_url,
