@@ -169,23 +169,32 @@ class SpringerScraper:
 
         print(f"Found {len(articles)} articles on this page")
         new_articles_found = False
-
         for i, article in enumerate(articles):
             # Stop if max results is reached
             if self.max_results and len(self.articles) >= self.max_results:
                 break
 
             try:
-                # Extract article details
+                # Extract article details inside the for loop in searching_and_gathering_papers function
                 title_link_element = await article.query_selector("xpath=.//div/h3/a")
                 if not title_link_element:
                     continue
 
+                # Extract the link and validate it
                 title_link = await title_link_element.get_attribute("href")
-                full_link = f"https://link.springer.com{title_link}"
+                if title_link:
+                    # Ensure the link is properly formed by checking if it starts with '/'
+                    if not title_link.startswith("http"):
+                        title_link = f"https://link.springer.com{title_link}"
 
-                # Skip if link is already scraped
-                if full_link in self.unique_links:
+                    # Skip if the link is already scraped (to avoid duplicates)
+                    if title_link in self.unique_links:
+                        continue
+
+                    # Proceed with the valid, unique link
+                    full_link = title_link
+                else:
+                    print("Skipping article with missing href attribute.")
                     continue
 
                 # Extract other details
