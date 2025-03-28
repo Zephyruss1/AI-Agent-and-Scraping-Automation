@@ -301,8 +301,77 @@ class SpringerScraper:
             f"     [INFO] Pagination complete. Total pages: {current_page - 1}, Total unique articles: {len(self.articles)}"
         )
 
+    async def extract_affiliations_and_full_names(
+        self, page, csv_file_path: str
+    ) -> None:
+        """Extract affiliations and full names from the Springer article page."""
+        # Check cookies only once
+        await self._check_cookies(page)
+
+        _csv_file = _load_csv(csv_file_path)
+
+        print("\n📍 Step 3: Extracting affiliations and full names!")
+
+        for _index, row in _csv_file.iterrows():
+            paper_link = row["Link"]
+            print(paper_link)
+            await page.goto(paper_link)
+            print(f"    [INFO] Navigating to paper: {paper_link}")
+            await page.wait_for_load_state("networkidle")
+
+            try:
+                try:
+                    await page.wait_for_selector(
+                        'xpath=//*[@id="affiliations"]',
+                        timeout=10000,
+                    )
+                except Exception as e:
+                    print(f"Failed to find affiliations section in page: {e}")
+
+                # retrieve affiliations full list
+                affiliations = await page.query_selector_all(
+                    'xpath=//*[@id="Aff1"]/p[1]'
+                )
+
+                # reitrieve authors full list
+                authors = await page.query_selector_all(
+                    '//ul[contains(@class, "c-article-author-list")]//li//a'
+                )
+
+                try:
+                    for affiliation in affiliations:
+                        print("affiliations:", await affiliation.text_content())
+                        _csv_file.at[_index, "Affiliations"] = (
+                            f"{await affiliation.text_content()}."
+                        )
+
+                    authors_list = []
+                    for author in authors:
+                        author_text = await author.text_content()
+                        if (
+                            author_text.startswith(("nAff", "na", "ORCID"))
+                            or len(author_text) <= 2
+                        ):
+                            continue
+                        print("authors:", author_text.replace("&", ",").strip())
+                        authors_list.append(author_text.replace("&", ",").strip())
+
+                    _csv_file.at[_index, "Authors"] = ", ".join(authors_list)
+                    print("---" * 30)
+                except Exception as e:
+                    print(f"Error extracting affiliations or authors: {e}")
+                    continue
+            except Exception as e:
+                print(f"Error extracting affiliations and authors: {e}")
+                continue
+            finally:
+                _csv_file.to_csv(csv_file_path, index=False)
+
 
 async def async_springer():
+    springer_file_path = (
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv"
+    )
     async with async_playwright() as pw:
         args = [
             "--no-sandbox",
@@ -330,15 +399,9 @@ async def async_springer():
                 max_pages=10,  # 1 page ~= 20 articles
             )
 
-            # Save results
-            if SpringerScraper_obj.articles:
-                print(
-                    f"\nSaving {len(SpringerScraper_obj.articles)} total unique articles to CSV file..."
-                )
-                await _save_to_csv(SpringerScraper_obj.articles, _keyword=search_term)
-            else:
-                print("No articles found.")
-
+            await SpringerScraper_obj.extract_affiliations_and_full_names(
+                page, springer_file_path
+            )
         except Exception as err:
             await page.screenshot(path="unexpected_error.png")
             print(f"An unexpected error occurred: {err}")
