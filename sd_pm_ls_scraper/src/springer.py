@@ -399,6 +399,15 @@ async def async_springer():
                 max_pages=10,  # 1 page ~= 20 articles
             )
 
+            # Save results
+            if SpringerScraper_obj.articles:
+                print(
+                    f"\nSaving {len(SpringerScraper_obj.articles)} total unique articles to CSV file..."
+                )
+                await _save_to_csv(SpringerScraper_obj.articles, _keyword=search_term)
+            else:
+                print("No articles found.")
+
             await SpringerScraper_obj.extract_affiliations_and_full_names(
                 page, springer_file_path
             )
