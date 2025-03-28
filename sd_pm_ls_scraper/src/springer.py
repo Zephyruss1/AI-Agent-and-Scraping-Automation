@@ -120,6 +120,7 @@ class SpringerScraper:
             )
             if close_button:
                 await close_button.click()
+                print("     🍪 ✅ [INFO] Cookies dialog closed.")
         except Exception as e:
             print(f"Cookie dialog not found or already closed: {e}")
 
@@ -306,7 +307,10 @@ async def async_springer():
             await SpringerScraper_obj._check_cookies(page)
 
             # Perform pagination
-            await SpringerScraper_obj.pagination(page, max_pages=20)
+            await SpringerScraper_obj.pagination(
+                page,
+                max_pages=10,  # 1 page ~= 20 articles
+            )
 
             # Save results
             if SpringerScraper_obj.articles:
