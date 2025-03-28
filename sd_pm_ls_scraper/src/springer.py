@@ -81,6 +81,9 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
 
 
 class SpringerScraper:
+    print("\n📍 Step 1: Connecting to Springer!")
+    print("     🌐 [INFO] Trying to Connecting to Springer...")
+
     def __init__(self, keyword: str, max_results: int = None):
         """
         Initializes a SpringerScraper instance with a keyword and constructs the search URL.
@@ -98,15 +101,20 @@ class SpringerScraper:
         self.max_results = max_results
         self.unique_links = set()  # Track unique article links
 
-    async def _check_cookies(self, page):
+    print("     🌐 ✅ [INFO] Connected to Springer!")
+
+    async def _check_cookies(self, page) -> None:
         """
         Handles the cookie consent dialog on the Springer page, if it appears.
 
         Args:
             page (Page): The Playwright page object representing the current browser tab.
         """
+        print("\n📍 Step 2: Checking for cookies dialog!")
         try:
-            await page.wait_for_selector("xpath=/html/body/dialog", timeout=5000)
+            print("     🍪 [INFO] Checking for cookies dialog...")
+
+            await page.wait_for_selector("xpath=/html/body/dialog", timeout=15000)
             close_button = await page.query_selector(
                 "xpath=/html/body/dialog/div/div/div[3]/button"
             )
