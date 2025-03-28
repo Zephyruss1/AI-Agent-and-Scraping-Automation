@@ -203,7 +203,6 @@ class SpringerScraper:
                 )
                 authors = re.sub(r"\s+in\s.*$", "", authors)
                 authors = authors.replace("...", "").strip()
-
                 published_date_element = await article.query_selector(
                     "xpath=.//div/div[4]/div/span[1]"
                 )
