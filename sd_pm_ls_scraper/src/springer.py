@@ -2,7 +2,17 @@ import asyncio
 import re
 from typing import Dict, List
 
+import pandas as pd
 from playwright.async_api import async_playwright
+
+
+def _load_csv(csv_filepath: str):
+    """Load a CSV file and return a DataFrame."""
+
+    try:
+        return pd.read_csv(csv_filepath)
+    except Exception as err:
+        raise Exception(f"Error loading CSV file: {err}") from err
 
 
 async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
