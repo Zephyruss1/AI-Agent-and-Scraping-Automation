@@ -222,6 +222,7 @@ class ArxivScraper:
                     )
                     author_text = await author_locator.text_content()
 
+                    # NOTE: This is a placeholder for the cosine similarity check
                     # paper_link_page = await self.page.context.new_page()
                     # await paper_link_page.goto(paper_link, wait_until='load')
                     # related_keyword = paper_link_page.locator('xpath=//*[@id="abs"]/div[4]/table/tbody/tr[1]/td[2]/span')
