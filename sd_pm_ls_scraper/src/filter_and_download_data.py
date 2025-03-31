@@ -60,157 +60,40 @@ except Exception as e:
     print(f"Error loading SpringerLink data: {e}")
 
 
-def reformat_datetime(data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Reformat the datetime column.
-    """
-    try:
-        data["Date"] = pd.to_datetime(data["Date"], format="mixed", errors="coerce")
-        data["Date"] = data["Date"].dt.strftime("%Y-%m-%d")
-    except Exception as e:
-        print(f"Error reformatting datetime: {e}")
-    return data.sort_values(by="Date", ascending=False)
-
-
-pubmed = reformat_datetime(pubmed_csv)
-sciencedirect = reformat_datetime(sciencedirect_csv)
-springer = reformat_datetime(springer_csv)
-
-
-def compare_authors(
-    data1: pd.DataFrame,
-    data2: pd.DataFrame,
-    data3: pd.DataFrame,
-    output1: str,
-    output2: str,
-    output3: str,
-):
-    """
-    Compare authors between three datasets and keep only the latest paper for each author.
-    """
-
-    try:
-        # Ensure the Date column is in datetime format
-        data1["Date"] = pd.to_datetime(data1["Date"], errors="coerce")
-        data2["Date"] = pd.to_datetime(data2["Date"], errors="coerce")
-        data3["Date"] = pd.to_datetime(data3["Date"], errors="coerce")
-
-        # Merge the three datasets on the Authors column
-        merged = pd.merge(
-            pd.merge(data1, data2, on="Authors", suffixes=("_1", "_2"), how="outer"),
-            data3,
-            on="Authors",
-            suffixes=("", "_3"),
-            how="outer",
-        )
-
-        # Determine the latest paper for each author
-        merged["Latest_Date"] = merged[["Date_1", "Date_2", "Date"]].max(axis=1)
-
-        # Filter rows to keep only the latest papers for each dataset
-        data1_filtered = merged[merged["Date_1"] == merged["Latest_Date"]].drop(
-            columns=["Date_2", "Date", "Latest_Date"]
-        )
-        data2_filtered = merged[merged["Date_2"] == merged["Latest_Date"]].drop(
-            columns=["Date_1", "Date", "Latest_Date"]
-        )
-        data3_filtered = merged[merged["Date"] == merged["Latest_Date"]].drop(
-            columns=["Date_1", "Date_2", "Latest_Date"]
-        )
-
-    except Exception as err:
-        raise Exception(f"Error in compare_authors: {err}") from err
-    finally:
-        data1_filtered.to_csv(output1, index=False)
-        data2_filtered.to_csv(output2, index=False)
-        data3_filtered.to_csv(output3, index=False)
-
-        print(f"Filtered data saved to {output1}.")
-        print(f"Filtered data saved to {output2}.")
-        print(f"Filtered data saved to {output3}.")
-
-
-# Call the function with the loaded DataFrames and output file paths
-compare_authors(
-    pubmed,
-    sciencedirect,
-    springer,
-    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results.csv"),
-    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results.csv"),
-    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/springer_results.csv"),
-)
-
-
-def filter_data(
-    data1: pd.DataFrame,
-    data2: pd.DataFrame,
-    data3: pd.DataFrame,
-    output1: str,
-    output2: str,
-    output3: str,
-) -> None:
-    """Filter the data by dropping columns where all values are NaN or empty strings."""
-    try:
-        # Replace empty strings with NaN in all DataFrames
-        data1.replace("", pd.NA, inplace=True)
-        data2.replace("", pd.NA, inplace=True)
-        data3.replace("", pd.NA, inplace=True)
-
-        # Drop columns where all values are NaN in each table
-        data1.dropna(axis=1, how="all", inplace=True)
-        data2.dropna(axis=1, how="all", inplace=True)
-        data3.dropna(axis=1, how="all", inplace=True)
-
-    except Exception as err:
-        raise Exception(f"Error filtering data: {err}") from err
-
-    finally:
-        # Ensure output directory exists
-        os.makedirs(os.path.dirname(output1), exist_ok=True)
-        os.makedirs(os.path.dirname(output2), exist_ok=True)
-        os.makedirs(os.path.dirname(output3), exist_ok=True)
-
-        # Save to CSV without writing the header if the DataFrame is empty
-        data1.to_csv(output1, index=False, header=not data1.empty)
-        data2.to_csv(output2, index=False, header=not data2.empty)
-        data3.to_csv(output3, index=False, header=not data3.empty)
-
-        print(f"Filtered data saved to {output1}.")
-        print(f"Filtered data saved to {output2}.")
-        print(f"Filtered data saved to {output3}.")
-
-
-filter_data(
-    pubmed,
-    sciencedirect,
-    springer,
-    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results.csv"),
-    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results.csv"),
-    os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/springer_results.csv"),
-)
-
-
 def _load_filtered_csv():
     """
-    Load the filtered CSV files.
+    Load the filtered CSV files for PubMed, ScienceDirect, and SpringerLink.
     """
-    os.makedirs(PDF_DIR_PUBMED, exist_ok=True)
-    os.makedirs(PDF_DIR_SCIENCEDIRECT, exist_ok=True)
-    os.makedirs(PDF_DIR_SPRINGER, exist_ok=True)
-
     try:
-        pubmed_filtered = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
-        )
-        sciencedirect_filtered = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv"
-        )
-        springer_filtered = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv"
-        )
-        return pubmed_filtered, sciencedirect_filtered, springer_filtered
+        pubmed_df = pd.read_csv(pubmed_path)
+        sciencedirect_df = pd.read_csv(sciencedirect_path)
+        springer_df = pd.read_csv(springer_path)
+        return pubmed_df, sciencedirect_df, springer_df
     except FileNotFoundError as e:
+        print(f"File not found: {e}")
+        raise
+    except Exception as e:
         print(f"Error loading filtered CSV files: {e}")
+        raise
+
+
+def reformat_datetime(*csv_files: str) -> None:
+    """
+    Reformat the datetime column for each CSV file.
+    """
+    try:
+        for csv_file in csv_files:
+            data = pd.read_csv(csv_file)  # Read each CSV file
+            data["Date"] = pd.to_datetime(data["Date"], format="mixed", errors="coerce")
+            data["Date"] = data["Date"].dt.strftime("%Y-%m-%d")
+            data.sort_values(by="Date", ascending=False, inplace=True)
+
+            # Save the reformatted CSV
+            filtered_csv_path = csv_file.rsplit(".csv", 1)[0]
+            data.to_csv(f"{filtered_csv_path}_tests.csv", index=False)
+            print(f"Reformatted CSV saved to {filtered_csv_path}_tests.csv.")
+    except Exception as e:
+        print(f"Error reformatting datetime: {e}")
 
 
 def download_pdf() -> str:
@@ -326,14 +209,75 @@ def download_pdf() -> str:
             print(f"    [INFO]⚠️ Invalid SpringerLink URL format: {pdf_url}")
 
 
-try:
-    csv_file_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv",
-    ]
-except FileNotFoundError as err:
-    raise FileNotFoundError("Please provide the correct file paths.") from err
+def compare_authors():
+    # Load all three CSV files
+    df1 = pd.read_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_tests.csv",
+        parse_dates=["Date"],
+    )
+    df2 = pd.read_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_tests.csv",
+        parse_dates=["Date"],
+    )
+    df3 = pd.read_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_tests.csv",
+        parse_dates=["Date"],
+    )
+
+    # Add source identifier to each dataframe (for tracking)
+    df1["source"] = "pubmed_results"
+    df2["source"] = "sciencedirect_results"
+    df3["source"] = "springer_results"
+
+    # Combine all dataframes
+    combined = pd.concat([df1, df2, df3])
+
+    # Find authors that appear in at least two sources
+    author_counts = combined["Authors"].value_counts()
+    duplicate_authors = author_counts[author_counts >= 2].index.tolist()
+
+    # Process duplicates - keep only the most recent entry
+    filtered_data = []
+
+    # Group by author and process each group
+    for author, group in combined.groupby("Authors"):
+        if author in duplicate_authors:
+            # Sort by date (newest first) and take the first (most recent)
+            most_recent = group.sort_values("Date", ascending=False).iloc[0]
+            filtered_data.append(most_recent)
+        else:
+            # For non-duplicates, keep all entries
+            filtered_data.extend(group.to_dict("records"))
+
+    # Create new dataframe with filtered data
+    result_df = pd.DataFrame(filtered_data)
+
+    # Split back into original files if needed
+    result_df1 = result_df[result_df["source"] == "pubmed_results"].drop(
+        "source", axis=1
+    )
+    result_df2 = result_df[result_df["source"] == "sciencedirect_results"].drop(
+        "source", axis=1
+    )
+    result_df3 = result_df[result_df["source"] == "springer_results"].drop(
+        "source", axis=1
+    )
+
+    # Save the cleaned files
+    result_df1.to_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_pubmed_results.csv",
+        index=False,
+    )
+    result_df2.to_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_sciencedirect_results.csv",
+        index=False,
+    )
+    result_df3.to_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_springer_results.csv",
+        index=False,
+    )
+
+    print("Processing complete. Cleaned files saved.")
 
 
 def explode_csv(*csv_files):
@@ -342,18 +286,46 @@ def explode_csv(*csv_files):
     """
     try:
         for csv_file in csv_files:
-            df = pd.read_csv(csv_file)
-            df["Authors"] = df["Authors"].str.split(",")
-            df = df.explode("Authors")
-            df.to_csv(csv_file, index=False)
+            df = pd.read_csv(f"{csv_file}.csv")
+
+            # Split authors on commas and handle spaces
+            df["Authors"] = df["Authors"].str.split(r"\s*,\s*")
+            df = df.explode("Authors").reset_index(drop=True)
+            df["Authors"] = df["Authors"].str.strip()  # Clean whitespace
+
+            df.to_csv(f"{csv_file}.csv", index=False)
             print(f"Exploded CSV saved to {csv_file}.")
+    except FileNotFoundError:
+        print(f"File not found: {csv_file}")
     except Exception as e:
         print(f"Error exploding CSV files: {e}")
 
 
 def main():
-    download_pdf()
+    # download_pdf()
+
+    csv_file_paths = [
+        sciencedirect_path,
+        pubmed_path,
+        springer_path,
+    ]
+
+    reformat_datetime(*csv_file_paths)
+
+    csv_file_paths = [
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_tests",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_tests",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_tests",
+    ]
+
+    # Check if files exist before proceeding
+    for path in csv_file_paths:
+        if not os.path.exists(f"{path}.csv"):
+            print(f"File not found: {path}")
+            return  # Stop execution if any file is missing
+
     explode_csv(*csv_file_paths)
+    compare_authors()
 
 
 if __name__ == "__main__":
