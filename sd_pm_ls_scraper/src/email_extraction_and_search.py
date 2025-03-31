@@ -350,8 +350,53 @@ class FindSimilarity:
         self.csv_file.to_csv(self.csv_file_path, index=False)
         print(f"✅ [INFO] Results saved to: '{self.csv_file_path}'")
 
+    def find_job_title_and_save(
+        self, list_of_jobs: List[str], current_index: int
+    ) -> None:
+        """Find the job title and author name using Cosine Similarity, and update only the current author."""
+        print("\n📍 Step 9: Finding Similarity and Saving to Csv File!")
 
-def extract_emails_from_pdf():
+        # Ensure 'job_title' column exists
+        if "job_title" not in self.headers:
+            self.csv_file["job_title"] = ""
+
+        for job_title in list_of_jobs:
+            # Skip if job_title is None or has the string "None"
+            if not job_title or "None" in job_title:
+                continue
+
+            print(f"🔄🕒💭 Processing job title: {job_title}")
+
+            # Retrieve the current row for the specified author index
+            author_name = self.csv_file.at[current_index, "Authors"]
+            current_job_title = self.csv_file.at[current_index, "job_title"]
+
+            if pd.notna(current_job_title) and current_job_title:
+                if job_title in current_job_title:
+                    print(
+                        "     ⚠️ [INFO] Job title already exists for the current author."
+                    )
+                    continue
+                else:
+                    # Append the new job title to the existing string
+                    new_job_title = f"{current_job_title}, {job_title}"
+                    self.csv_file.at[current_index, "job_title"] = new_job_title
+                    print(
+                        f"     🔄 [INFO] Updating job title: {current_job_title} -> {new_job_title}"
+                    )
+            else:
+                # If no job title exists, simply assign it
+                self.csv_file.at[current_index, "job_title"] = job_title
+                print(f"     🔄 [INFO] Adding job title: {job_title} to {author_name}")
+
+            print("---" * 10)
+
+        # Save the updated CSV file
+        self.csv_file.to_csv(self.csv_file_path, index=False)
+        print(f"✅ [INFO] Results saved to: '{self.csv_file_path}'")
+
+
+def extract_job_titles_from_pdf():
     # Step 1: Load PDFs from each path and process them one by one
     pdf_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/sciencedirect/",
@@ -415,31 +460,28 @@ def fill_empty_emails_with_search():
         else:
             csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv"
 
-        # Step 5: Search for email addresses using the AI Search
-        for _index, row in _csv.iterrows():
-            keyword = ""
-            if "sciencedirect" in csv_path:
-                keyword = row["Keyword_2"]
-            elif "pubmed" in csv_path:
-                keyword = row["Keyword_1"]
-            elif "springer" in csv_path:
-                keyword = row["Keyword"]
+        # Step 6: Search for job title addresses using the AI Search
+        for _index, row in _csv.iloc[:10].iterrows():
+            keyword = row["Keyword"]
 
             author_name = row["Authors"]
-
+            job = row["job_title"]
+            if pd.notna(job) and job:
+                print(f"Job title already exists for author: {author_name}")
+                continue
             print(f"Processing author: {author_name}")
 
             web_search = WebSearch(
                 name=str(author_name), csv_file=_csv, _keyword=keyword
             )
-            list_of_emails = web_search.ai_search()
+            list_of_jobs = web_search.ai_search()
 
             # Step 6: Find similarity between the author names and emails
             df_csv = _load_csv(file_name=csv_file_path)
             similarity_finder = FindSimilarity(
-                csv_file=df_csv, csv_file_path=csv_file_path
+                csv_file=df_csv, csv_file_path=f"{csv_file_path}"
             )
-            similarity_finder.find_email_author_and_save(list_of_emails)
+            similarity_finder.find_job_title_and_save(list_of_jobs, _index)
             print("-----" * 15)
 
 
