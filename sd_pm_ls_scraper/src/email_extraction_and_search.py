@@ -441,9 +441,9 @@ def extract_job_titles_from_pdf():
 
 def fill_empty_emails_with_search():
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_sciencedirect_results.csv",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_pubmed_results.csv",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_springer_results.csv",
     ]
 
     for csv_path in csv_paths:
@@ -452,13 +452,39 @@ def fill_empty_emails_with_search():
         headers = [header for header in _csv.columns]
         if "email" not in headers:  # Ensure the column name matches
             _csv["email"] = ""  # Add the 'email' column if missing
+        if "job_title" not in headers:  # Ensure the column name matches
+            _csv["job_title"] = ""  # Add the 'job_title' column if missing
 
         if "sciencedirect" in csv_path:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv"
-        elif "pubmed" in csv_path:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
+            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_sciencedirect_results.csv"
+        if "pubmed" in csv_path:
+            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_pubmed_results.csv"
         else:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv"
+            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_springer_results.csv"
+
+        # Step 5: Search for email addresses using the AI Search
+        for _index, row in _csv.iloc[:10].iterrows():
+            keyword = row["Keyword"]
+
+            author_name = row["Authors"]
+            email = row["email"]
+            if pd.notna(email) and email:
+                print(f"Email already exists for author: {author_name}")
+                continue
+            print(f"Processing author: {author_name}")
+
+            web_search = WebSearch(
+                name=str(author_name), csv_file=_csv, _keyword=keyword
+            )
+            list_of_emails = web_search.ai_search()
+
+            # Step 6: Find similarity between the author names and emails
+            df_csv = _load_csv(file_name=csv_file_path)
+            similarity_finder = FindSimilarity(
+                csv_file=df_csv, csv_file_path=f"{csv_file_path}"
+            )
+            similarity_finder.find_email_author_and_save(list_of_emails)
+            print("-----" * 15)
 
         # Step 6: Search for job title addresses using the AI Search
         for _index, row in _csv.iloc[:10].iterrows():
