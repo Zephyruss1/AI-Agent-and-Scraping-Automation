@@ -124,7 +124,7 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
             try:
                 title = record.get("TI", "No title available")
                 authors = record.get("FAU", ["No authors available"])
-                if "No authors available" in authors:
+                if "No authors available" not in authors:
                     for author in authors:
                         firstname = author.split(",")[1].strip()
                         lastname = author.split(",")[0].strip()
