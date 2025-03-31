@@ -12,16 +12,19 @@ INSTTOKEN = os.getenv("ELSEVIER_INSTTOKEN")
 
 
 def make_request(
-    search_query: str, start_year: str, end_year: str, max_papers: int = 18000
+    search_query: str,
+    start_year: str = None,
+    end_year: str = None,
+    max_papers: int = 18000,
 ) -> list:
     """
-    Fetch ScienceDirect articles with a date range filter.
+    Fetch ScienceDirect articles with a date range filter and specific article types.
 
     Args:
         search_query (str): The search term (e.g., "microbial kinetics AND CFU").
         start_year (str): Start date in 'YYYY/MM/DD' format (e.g., "2010/01/01").
         end_year (str): End date in 'YYYY/MM/DD' format (e.g., "2020/12/31").
-        max_papers (int): Maximum number of papers to retrieve (default: 10).
+        max_papers (int): Maximum number of papers to retrieve (default: 18000).
 
     Returns:
         list: List of search result entries.
@@ -37,11 +40,13 @@ def make_request(
 
     params = {
         "query": search_query,
-        "date": year_range,
         "start": start,
         "count": count,
         "view": "COMPLETE",
+        # "subtype": "article,review",  # Article type filter
     }
+    if start_year and end_year:
+        params["date"] = year_range
 
     headers = {
         "Accept": "application/json",
