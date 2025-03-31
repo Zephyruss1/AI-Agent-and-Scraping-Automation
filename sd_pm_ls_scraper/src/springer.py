@@ -105,7 +105,8 @@ class SpringerScraper:
         """
         self.keyword = keyword.replace(" ", "+") if " " in keyword else keyword
         self.base_url = "https://link.springer.com/search"
-        self.url = f"{self.base_url}?new-search=true&query={self.keyword}&content-type=research"
+        # self.url = 'https://link.springer.com/search?new-search=true&query=%28"biological+screening"+OR+"high-throughput+screening"%29+AND+%28microbial+OR+bacteria+OR+fungi%29+AND+%28"automated+imaging"+OR+"image-based+screening"%29+&content-type=research&content-type=review&dateFrom=&dateTo=&sortBy=relevance'
+        self.url = f"{self.base_url}?new-search=true&query={self.keyword}&content-type=review&content-type=research&dateFrom=&dateTo=&sortBy=relevance"  # NOTE: Added review type. For tests
         self.articles = []
         self.page = None
         self.max_results = max_results
@@ -129,10 +130,34 @@ class SpringerScraper:
                 "xpath=/html/body/dialog/div/div/div[3]/button"
             )
             if close_button:
+                print("     🍪 [INFO] Cookies dialog found.")
                 await close_button.click()
                 print("     🍪 ✅ [INFO] Cookies dialog closed.")
         except Exception as e:
-            print(f"Cookie dialog not found or already closed: {e}")
+            print(f"    🍪 ❌ [INFO] Cookies dialog not found or already closed: {e}")
+
+    async def custom_popup_handler(self, page, popup) -> None:
+        """
+        Custom handler for a popup dialog on Springer.
+
+        Args:
+            page (Page): The Playwright page object representing the current browser tab.
+            popup (Popup): The Playwright popup object representing the dialog.
+
+        """
+        try:
+            # Custom popup Xpath. -> https://prnt.sc/EzOR7WLejg3O
+            await page.wait_for_selector(
+                "xpath=///html/body/div[8]/div[2]/div", timeout=10000
+            )
+            close_button = await popup.query_selector(
+                "xpath=///html/body/div[8]/div[2]/div/div[3]/button[2]"
+            )
+            if close_button:
+                await close_button.click()
+                print("     [INFO] Custom popup closed.")
+        except Exception as e:
+            print(f"Error handling custom popup: {e}")
 
     async def searching_and_gathering_papers(self, page):
         """
@@ -383,10 +408,10 @@ async def async_springer():
         context = await browser.new_context(viewport={"width": 1280, "height": 720})
         page = await context.new_page()
 
-        search_term = "bacteria AND Plant pathology AND Insecticides"
-        max_papers = 1000
+        search_term = '("biological screening" OR "high-throughput screening") AND (microbial OR bacteria OR fungi) AND ("automated imaging" OR "image-based screening")'
+        # max_papers = 100
 
-        SpringerScraper_obj = SpringerScraper(search_term, max_results=max_papers)
+        SpringerScraper_obj = SpringerScraper(search_term)
 
         try:
             # Navigate to initial search page
@@ -398,7 +423,6 @@ async def async_springer():
                 page,
                 max_pages=10,  # 1 page ~= 20 articles
             )
-
             # Save results
             if SpringerScraper_obj.articles:
                 print(
