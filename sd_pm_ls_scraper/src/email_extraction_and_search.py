@@ -141,6 +141,12 @@ class AnswerFormat(BaseModel):
     email_adress: str
 
 
+class JobTitleFormat(BaseModel):
+    """ "Job Title Format for Perplexity API."""
+
+    job_title: str
+
+
 class WebSearch:
     def __init__(
         self,
@@ -224,6 +230,67 @@ class WebSearch:
                         return ["None"]
                 except requests.JSONDecodeError:
                     print("Error: Response content is not valid JSON")
+                    return ["None"]
+            else:
+                print(f"Error: Received status code {response.status_code}")
+                return ["None"]
+
+        def perplexity_search_for_job_title() -> List[str]:
+            """Search for job title for the provided author name."""
+            import json
+
+            print("\n📍 Step 8: [Perplexity] Extracting job titles!")
+            payload = {
+                "model": self.config.model,
+                "search_context_size": self.config.search_context_size,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a web search assistant. The user will provide an author name. "
+                            f"Search the {self.keyword_index} field for that author's job title. "
+                            "If no job title is found, return 'None'. "
+                            "Output only the job title or 'None' with no additional commentary."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": f"{self.author_name} job title",
+                    },
+                ],
+                "temperature": self.config.temperature,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {"schema": JobTitleFormat.model_json_schema()},
+                },
+            }
+
+            response = requests.post(
+                self.config.url, headers=self.config.get_headers(), json=payload
+            )
+            print(f"Prompt: {payload.get('messages')[1].get('content')}")
+            if response.status_code == 200:
+                try:
+                    response_json = response.json()
+                    raw_content = response_json["choices"][0]["message"]["content"]
+                    print(f"Raw Response: {raw_content}")
+
+                    # Parse the JSON content to extract the job title
+                    try:
+                        parsed_content = json.loads(raw_content)
+                        job_title = parsed_content.get("job_title", "None")
+                        if job_title != "None":
+                            print(f"    ✅ [INFO] Job title listed: [{job_title}]")
+                            return [job_title]
+                        else:
+                            print("    ❌ [INFO] No Job title found.")
+                            return ["None"]
+                    except json.JSONDecodeError:
+                        print("Error: Response content is not valid JSON")
+                        return ["None"]
+
+                except KeyError:
+                    print("Error: Unexpected response format")
                     return ["None"]
             else:
                 print(f"Error: Received status code {response.status_code}")
