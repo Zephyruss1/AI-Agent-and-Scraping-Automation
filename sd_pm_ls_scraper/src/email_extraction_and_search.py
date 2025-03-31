@@ -135,7 +135,7 @@ class PerplexityConfig:
         return {"Authorization": f"Bearer {self.api_key}"}
 
 
-class AnswerFormat(BaseModel):
+class EmailFormat(BaseModel):
     """Answer Format for Perplexity API."""
 
     email_adress: str
@@ -183,7 +183,7 @@ class WebSearch:
 
             return pipeline
 
-        def perplexity_search() -> List[str]:
+        def perplexity_search_for_email() -> List[str]:
             """Search for email addresses for the provided author name."""
             print("\n📍 Step 8: [Perplexity] Extracting Email Addresses!")
             payload = {
@@ -193,7 +193,7 @@ class WebSearch:
                     {
                         "role": "system",
                         "content": (
-                            "You are a web searcher assistant. The user will provide an author name. "
+                            "You are a web searcher assistant. The user will provide an author name."
                             f"Your task is: Search email addresses in the {self.keyword_index} field for provided author name."
                             "If you find no email addresses, return 'None'. "
                             "Output only the emails or 'None'—no additional explanations."
@@ -201,13 +201,13 @@ class WebSearch:
                     },
                     {
                         "role": "user",
-                        "content": f"{self.author_name} email adress in the {self.keyword_index} field",
+                        "content": f"{self.author_name} email adress",
                     },
                 ],
                 "temperature": self.config.temperature,
                 "response_format": {
                     "type": "json_schema",
-                    "json_schema": {"schema": AnswerFormat.model_json_schema()},
+                    "json_schema": {"schema": EmailFormat.model_json_schema()},
                 },
             }
 
@@ -319,7 +319,7 @@ class WebSearch:
             return res
 
         # Build the search pipeline with the desired methods
-        search_pipeline = build_search_pipeline(perplexity_search)
+        search_pipeline = build_search_pipeline(perplexity_search_for_job_title)
 
         # Execute the pipeline
         return search_pipeline()
