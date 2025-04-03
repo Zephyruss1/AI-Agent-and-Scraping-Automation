@@ -1,0 +1,10 @@
+streamlit
+pandas
+requests
+langchain-openai
+oauth2client
+google-auth
+gspread
+scikit-learn
+python-dotenv
+asyncio
