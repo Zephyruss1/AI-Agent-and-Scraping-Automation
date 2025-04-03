@@ -17,3 +17,4 @@ sd_pm_ls_scraper/playground.ipynb
 sd_pm_ls_scraper/logs
 sd_pm_ls_scraper/output
 .vscode/
+.env/
