@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Literal, Optional
 
-import google.auth.transport.requests
+import google.auth
 import gspread
 import pandas as pd
 import requests
