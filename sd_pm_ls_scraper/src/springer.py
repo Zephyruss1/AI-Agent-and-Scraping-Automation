@@ -94,7 +94,13 @@ class SpringerScraper:
     print("\n📍 Step 1: Connecting to Springer!")
     print("     🌐 [INFO] Trying to Connecting to Springer...")
 
-    def __init__(self, keyword: str, max_results: int = None):
+    def __init__(
+        self,
+        keyword: str,
+        max_results: int = None,
+        start_date: str = None,
+        end_date: str = None,
+    ):
         """
         Initializes a SpringerScraper instance with a keyword and constructs the search URL.
 
@@ -103,10 +109,12 @@ class SpringerScraper:
                            to form a valid URL query parameter.
             max_results (int, optional): Maximum number of results to scrape.
         """
+        self.start_date = start_date if start_date else ""
+        self.end_date = end_date if end_date else ""
         self.keyword = keyword.replace(" ", "+") if " " in keyword else keyword
         self.base_url = "https://link.springer.com/search"
         # self.url = 'https://link.springer.com/search?new-search=true&query=%28"biological+screening"+OR+"high-throughput+screening"%29+AND+%28microbial+OR+bacteria+OR+fungi%29+AND+%28"automated+imaging"+OR+"image-based+screening"%29+&content-type=research&content-type=review&dateFrom=&dateTo=&sortBy=relevance'
-        self.url = f"{self.base_url}?new-search=true&query={self.keyword}&content-type=review&content-type=research&dateFrom=&dateTo=&sortBy=relevance"  # NOTE: Added review type. For tests
+        self.url = f"{self.base_url}?new-search=true&query={self.keyword}&content-type=research&dateFrom={self.start_date}&dateTo={self.end_date}&sortBy=relevance"
         self.articles = []
         self.page = None
         self.max_results = max_results
@@ -297,7 +305,7 @@ class SpringerScraper:
 
             try:
                 # Construct paginated URL
-                paginated_url = f"{self.base_url}?new-search=true&query={self.keyword}&content-type=research&page={current_page}"
+                paginated_url = f"{self.url}&page={current_page}"
                 print(f"     [INFO] Navigating to page {current_page}: {paginated_url}")
 
                 # Navigate to the paginated URL
@@ -410,8 +418,12 @@ async def async_springer():
 
         search_term = '("biological screening" OR "high-throughput screening") AND (microbial OR bacteria OR fungi) AND ("automated imaging" OR "image-based screening")'
         # max_papers = 100
+        start_date = "2012"
+        end_date = "2025"
 
-        SpringerScraper_obj = SpringerScraper(search_term)
+        SpringerScraper_obj = SpringerScraper(
+            search_term, max_results=None, start_date=start_date, end_date=end_date
+        )
 
         try:
             # Navigate to initial search page
