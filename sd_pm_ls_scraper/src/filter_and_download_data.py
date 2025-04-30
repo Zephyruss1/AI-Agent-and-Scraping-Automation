@@ -209,75 +209,107 @@ def download_pdf() -> str:
             print(f"    [INFO]⚠️ Invalid SpringerLink URL format: {pdf_url}")
 
 
-def compare_authors():
-    # Load all three CSV files
-    df1 = pd.read_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_tests.csv",
-        parse_dates=["Date"],
-    )
-    df2 = pd.read_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_tests.csv",
-        parse_dates=["Date"],
-    )
-    df3 = pd.read_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_tests.csv",
-        parse_dates=["Date"],
-    )
+def amount_of_mentions() -> None:
+    """
+    Count the number of mentions of each author in the CSV files,
+    considering only unique author-DOI combinations.
+    """
 
-    # Add source identifier to each dataframe (for tracking)
-    df1["source"] = "pubmed_results"
-    df2["source"] = "sciencedirect_results"
-    df3["source"] = "springer_results"
+    # Load all three exploded CSV files
+    try:
+        df1 = pd.read_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_1_tests.csv",
+            parse_dates=["Date"],
+        )
+        df2 = pd.read_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_1_merged_tests.csv",
+            parse_dates=["Date"],
+        )
+        df3 = pd.read_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_1_tests.csv",
+            parse_dates=["Date"],
+        )
+    except FileNotFoundError as e:
+        print(f"Error loading playground CSV files: {e}")
+        return
 
-    # Combine all dataframes
-    combined = pd.concat([df1, df2, df3])
+    # Combine all dataframes by stacking them vertically
+    combined = pd.concat([df1, df2, df3], ignore_index=True)
 
-    # Find authors that appear in at least two sources
-    author_counts = combined["Authors"].value_counts()
-    duplicate_authors = author_counts[author_counts >= 2].index.tolist()
+    # Verify required columns exist in the combined dataframe
+    required_columns = ["Authors", "DOI"]
+    if all(col in combined.columns for col in required_columns):
+        # Identify unique author-DOI combinations
+        unique_author_dois = combined.drop_duplicates(subset=["Authors", "DOI"])
 
-    # Process duplicates - keep only the most recent entry
-    filtered_data = []
+        # Count author mentions based on unique author-DOI combinations
+        author_counts = unique_author_dois["Authors"].value_counts().reset_index()
+        author_counts.columns = ["Authors", "amount_of_mentions"]
 
-    # Group by author and process each group
-    for author, group in combined.groupby("Authors"):
-        if author in duplicate_authors:
-            # Sort by date (newest first) and take the first (most recent)
-            most_recent = group.sort_values("Date", ascending=False).iloc[0]
-            filtered_data.append(most_recent)
-        else:
-            # For non-duplicates, keep all entries
-            filtered_data.extend(group.to_dict("records"))
-
-    # Create new dataframe with filtered data
-    result_df = pd.DataFrame(filtered_data)
-
-    # Split back into original files if needed
-    result_df1 = result_df[result_df["source"] == "pubmed_results"].drop(
-        "source", axis=1
-    )
-    result_df2 = result_df[result_df["source"] == "sciencedirect_results"].drop(
-        "source", axis=1
-    )
-    result_df3 = result_df[result_df["source"] == "springer_results"].drop(
-        "source", axis=1
-    )
+        # Merge the counts back into the original combined dataframe
+        combined = pd.merge(combined, author_counts, on="Authors", how="left")
+    else:
+        print(
+            f"Missing required columns: {required_columns}. Available columns are: {combined.columns.tolist()}"
+        )
 
     # Save the cleaned files
-    result_df1.to_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_pubmed_results.csv",
-        index=False,
-    )
-    result_df2.to_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_sciencedirect_results.csv",
-        index=False,
-    )
-    result_df3.to_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_springer_results.csv",
+    combined.to_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
         index=False,
     )
 
     print("Processing complete. Cleaned files saved.")
+
+
+def compare_authors() -> None:
+    print("Starting compare_authors function...")
+    # Load the combined CSV file
+    try:
+        combined = pd.read_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
+            parse_dates=["Date"],
+        )
+    except FileNotFoundError as e:
+        print(f"Error loading CSV file: {e}")
+        return
+
+    # Check if Source column exists to properly identify cross-source duplicates
+    if "Source" not in combined.columns:
+        print("Warning: 'Source' column not found. Adding default source information.")
+        # You may need to add source information if it's not already there
+        combined["Source"] = "Unknown"
+
+    # Find authors that appear multiple times
+    author_counts = combined["Authors"].value_counts()
+    duplicate_authors = author_counts[author_counts >= 2].index.tolist()
+    print(f"Found {len(duplicate_authors)} authors that appear multiple times.")
+
+    # Use a more efficient approach: create a list to store filtered rows
+    filtered_rows = []
+
+    # Process each author group
+    for author, group in combined.groupby("Authors"):
+        if author in duplicate_authors:
+            # Sort by date (newest first) and take the first (most recent)
+            most_recent = group.sort_values("Date", ascending=False).iloc[0:1]
+            filtered_rows.append(most_recent)
+        else:
+            # For non-duplicates, keep all entries
+            filtered_rows.append(group)
+
+    # Combine the filtered rows more efficiently
+    filtered_data = pd.concat(filtered_rows, ignore_index=True)
+
+    # Save the cleaned files with a more descriptive name
+    output_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_final.csv"
+    filtered_data.to_csv(output_path, index=False)
+
+    print(f"Processing complete. Final cleaned file saved to: {output_path}")
+    print(
+        f"Records before deduplication: {len(combined)}, after deduplication: {len(filtered_data)}"
+    )
+    print("compare_authors function completed.")
 
 
 def explode_csv(*csv_files):
