@@ -51,9 +51,9 @@ def main():
         custom_system_prompt = st.sidebar.text_area(
             "Custom System Prompt for Perplexity:",
             placeholder="You are a web search assistant. The user will provide an author name. "
-            "Search the {self.keyword_index} field for that author's job title. "
-            "If no job title is found, return 'None'. "
-            "Output only the job title or 'None' with no additional commentary.",
+            f"Search the {{self.keyword_index}} field for that author's {'email address' if purpose_choice == 'Find email addresses' else 'job title'}. "
+            f"If no {'email address' if purpose_choice == 'Find email addresses' else 'job title'} is found, return 'None'. "
+            "Output only the result or 'None' with no additional commentary.",
         )
         if custom_system_prompt:
             st.sidebar.success("Custom System Prompt added successfully!")
@@ -64,15 +64,16 @@ def main():
         st.sidebar.subheader("Custom Prompt (Optional)")
         custom_prompt = st.sidebar.text_area(
             "Custom Prompt for ChatGPT:",
-            placeholder="1. Search '{self.author_name} email address in the {self.keyword_index} field' and enter."
-            "2. Output only the emails or 'None'—no additional explanations.",
+            placeholder=f"1. Search '{{self.author_name}} {'email address' if purpose_choice == 'Find email addresses' else 'job title'} in the {{self.keyword_index}} field' and enter. "
+            f"2. Output only the {'email addresses' if purpose_choice == 'Find email addresses' else 'job titles'} or 'None'—no additional explanations.",
         )
         if custom_prompt:
             st.sidebar.success("Custom prompt added successfully!")
     elif model_choice == "Perplexity":
         st.sidebar.subheader("Custom Prompt (Optional)")
         custom_prompt = st.sidebar.text_area(
-            "Custom Prompt for ChatGPT:", placeholder="{self.author_name} email adress"
+            "Custom Prompt for Perplexity:",
+            placeholder=f"{{self.author_name}} {'email address' if purpose_choice == 'Find email addresses' else 'job title'}",
         )
         if custom_prompt:
             st.sidebar.success("Custom prompt added successfully!")
