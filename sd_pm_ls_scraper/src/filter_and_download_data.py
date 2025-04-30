@@ -334,6 +334,7 @@ def explode_csv(*csv_files):
 
 
 def main():
+    print("Starting main execution...")
     # download_pdf()
 
     csv_file_paths = [
@@ -342,12 +343,14 @@ def main():
         springer_path,
     ]
 
+    print("Reformatting datetime...")
     reformat_datetime(*csv_file_paths)
 
+    # Fix the file paths to match what was actually generated
     csv_file_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_tests",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_tests",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_tests",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_1_tests",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_1_merged_tests",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_1_tests",
     ]
 
     # Check if files exist before proceeding
@@ -356,9 +359,18 @@ def main():
             print(f"File not found: {path}")
             return  # Stop execution if any file is missing
 
+    print("Exploding CSV files...")
     explode_csv(*csv_file_paths)
+
+    print("Calculating author mentions...")
+    amount_of_mentions()
+
+    print("Comparing authors across sources...")
     compare_authors()
+
+    print("Script execution completed successfully.")
 
 
 if __name__ == "__main__":
     main()
+    print("Program terminated.")
