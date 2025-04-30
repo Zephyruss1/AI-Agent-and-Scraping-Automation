@@ -43,7 +43,7 @@ def make_request(
         "start": start,
         "count": count,
         "view": "COMPLETE",
-        # "subtype": "article,review",  # Article type filter
+        "subtype": "article",  # Article type filter
     }
     if start_year and end_year:
         params["date"] = year_range
@@ -62,7 +62,7 @@ def make_request(
                 "https://api.elsevier.com/content/search/sciencedirect",
                 params=params,
                 headers=headers,
-                timeout=10,
+                timeout=30,
             )
             print(f"Request URL: {response.url}")
             print(f"Status code: {response.status_code}")
@@ -186,11 +186,16 @@ def save_csv(results: list, _keyword: str) -> None:
 
 
 if __name__ == "__main__":
-    search_term = "microbial kinetics AND CFU"
-    start_date = "2010"
-    end_date = "2020"
-    max_papers = 100
+    search_term = '"high-throughput screening" AND fungi AND "image-based screening"'
+    prefix_and_suffix = ["(", ")", '"', "'"]
+    for prefix in prefix_and_suffix:
+        search_term = search_term.replace(prefix, "")
+    print(search_term)
 
-    results = make_request(search_term, start_date, end_date, max_papers)
+    start_date = "2012"
+    end_date = "2025"
+    max_papers = 250
+
+    results = make_request(search_term, start_date, end_date)
     print(f"Total articles retrieved: {len(results)}")
     save_csv(results, _keyword=search_term)
