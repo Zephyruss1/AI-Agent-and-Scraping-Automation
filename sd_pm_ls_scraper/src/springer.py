@@ -53,6 +53,7 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
     headers = [
         "Title",
         "Link",
+        "DOI",
         "Description",
         "Authors",
         "Date",
@@ -71,10 +72,19 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
             writer.writerow(headers)  # Write the headers
 
             for result in results:
+                # Extract DOI safely
+                link = result.get("link", "null")
+                doi = "null"
+                if "article/" in link:
+                    try:
+                        doi = link.split("article/")[1]
+                    except IndexError:
+                        doi = "null"
                 writer.writerow(
                     [
                         result.get("title", "null"),
-                        result.get("link", "null"),
+                        link,
+                        doi,
                         result.get("description", "null"),
                         result.get("authors", "null"),
                         result.get("published_date", "null"),
@@ -119,6 +129,7 @@ class SpringerScraper:
         self.page = None
         self.max_results = max_results
         self.unique_links = set()  # Track unique article links
+        self.cookies_handled: bool = False
 
     print("     🌐 ✅ [INFO] Connected to Springer!")
 
@@ -129,6 +140,10 @@ class SpringerScraper:
         Args:
             page (Page): The Playwright page object representing the current browser tab.
         """
+        if self.cookies_handled is True:
+            print("     🍪 [INFO] Cookies dialog already handled.")
+            return
+
         print("\n📍 Step 2: Checking for cookies dialog!")
         try:
             print("     🍪 [INFO] Checking for cookies dialog...")
@@ -143,6 +158,7 @@ class SpringerScraper:
                 print("     🍪 ✅ [INFO] Cookies dialog closed.")
         except Exception as e:
             print(f"    🍪 ❌ [INFO] Cookies dialog not found or already closed: {e}")
+        self.cookies_handled = True
 
     async def custom_popup_handler(self, page, popup) -> None:
         """
@@ -176,22 +192,41 @@ class SpringerScraper:
             print("     [INFO] Maximum results reached. Skipping search.")
             return False
 
-        print("\n📍 Step: Gathering papers!")
+        print("\n📍 Step 3: Gathering papers!")
         self.page = page  # Store page reference if needed later
 
         await page.wait_for_load_state("networkidle")
 
+        # # Wait for the search results to load
+        # try:
+        #     await page.wait_for_selector(
+        #         'xpath=//*[@id="main"]//*[@id="main"]/div/div/div/div[2]/div[3]/div[1]', timeout=10000
+        #     )
+        # except Exception as e:
+        #     print(f"Failed to find search results: {e}")
+        #     return False
+
+        # # Fix: use query_selector (not _all) and properly extract text content
+        # total_results_element = await page.query_selector(
+        #     'xpath=//*[@id="main"]//*[@id="main"]/div/div/div/div[2]/div[3]/div[1]/span'
+        # )
+        # if total_results_element:
+        #     total_results_text = await total_results_element.text_content()
+        #     print(f"     [INFO] Found {total_results_text}")
+        # else:
+        #     print("     [INFO] Could not determine total results")
+
         # Wait for article list to load
         try:
             await page.wait_for_selector(
-                'xpath=//*[@id="main"]/div/div/div/div[2]/div[4]/ol', timeout=10000
+                'xpath=//*[@id="main"]/div/div/div/div[2]/div[3]/ol', timeout=10000
             )
         except Exception as e:
             print(f"Failed to load article list: {e}")
             return False
 
         articles = await page.query_selector_all(
-            'xpath=//*[@id="main"]/div/div/div/div[2]/div[4]/ol/li'
+            'xpath=//*[@id="main"]/div/div/div/div[2]/div[3]/ol/li'
         )
 
         if not articles:
@@ -339,7 +374,6 @@ class SpringerScraper:
     ) -> None:
         """Extract affiliations and full names from the Springer article page."""
         # Check cookies only once
-        await self._check_cookies(page)
 
         _csv_file = _load_csv(csv_file_path)
 
@@ -347,11 +381,9 @@ class SpringerScraper:
 
         for _index, row in _csv_file.iterrows():
             paper_link = row["Link"]
-            print(paper_link)
             await page.goto(paper_link)
             print(f"    [INFO] Navigating to paper: {paper_link}")
-            await page.wait_for_load_state("networkidle")
-
+            # await page.wait_for_load_state("networkidle") # NOTE: Having issue with this line about timeout...
             try:
                 try:
                     await page.wait_for_selector(
@@ -360,7 +392,7 @@ class SpringerScraper:
                     )
                 except Exception as e:
                     print(f"Failed to find affiliations section in page: {e}")
-
+                    continue
                 # retrieve affiliations full list
                 affiliations = await page.query_selector_all(
                     'xpath=//*[@id="Aff1"]/p[1]'
@@ -433,7 +465,7 @@ async def async_springer():
             # Perform pagination
             await SpringerScraper_obj.pagination(
                 page,
-                max_pages=10,  # 1 page ~= 20 articles
+                # max_pages=2,  # 1 page ~= 20 articles (DEBUG)
             )
             # Save results
             if SpringerScraper_obj.articles:
