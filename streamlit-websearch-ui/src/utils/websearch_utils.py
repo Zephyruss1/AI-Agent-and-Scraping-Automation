@@ -463,7 +463,7 @@ class FindSimilarity:
                 cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
                 print(cosine_sim)
                 try:
-                    if cosine_sim[0][0] > 0.6:
+                    if cosine_sim[0][0] > 0.58:
                         print(
                             f"    ✅ [INFO] Match Found: {author_name} | {cosine_sim[0][0]}"
                         )
