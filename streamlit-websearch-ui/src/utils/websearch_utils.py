@@ -383,6 +383,7 @@ class WebSearch:
             res = result.final_result().split("\n")
         else:
             res = ["None"]
+        self.browser.close()
         return res
 
     def browser_use_find_job(self, prompt: Optional[str] = None) -> List[str]:
@@ -409,6 +410,7 @@ class WebSearch:
             res = result.final_result().split("\n")
         else:
             res = ["None"]
+        self.browser.close()
         return res
 
 
