@@ -37,7 +37,7 @@ INSTTOKEN = os.getenv("ELSEVIER_INSTTOKEN")
 # Try to load each CSV file individually
 try:
     sciencedirect_path = os.path.join(
-        BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results.csv"
+        BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results_1_merged.csv"
     )
     sciencedirect_csv = pd.read_csv(sciencedirect_path)
     print("ScienceDirect data loaded successfully.")
@@ -45,7 +45,7 @@ except Exception as e:
     print(f"Error loading ScienceDirect data: {e}")
 
 try:
-    pubmed_path = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results.csv")
+    pubmed_path = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results_1.csv")
     pubmed_csv = pd.read_csv(pubmed_path)
     print("PubMed data loaded successfully.")
 except Exception as e:
@@ -53,7 +53,7 @@ except Exception as e:
 
 try:
     springer_path = os.path.join(
-        BASE_DIR, "sd_pm_ls_scraper/output/springer_results.csv"
+        BASE_DIR, "sd_pm_ls_scraper/output/springer_results_1.csv"
     )
     springer_csv = pd.read_csv(springer_path)
     print("SpringerLink data loaded successfully.")
@@ -366,7 +366,7 @@ def extract_university() -> None:
     print("extract_university function completed.")
 
 
-def extract_department() -> str:
+def extract_department() -> None:
     print("Starting extract_department function...")
     try:
         combined = pd.read_csv(
@@ -392,7 +392,7 @@ def extract_department() -> str:
     print("Department extraction completed.")
 
 
-def extract_countries() -> str:
+def extract_countries() -> None:
     print("Starting extract_countries function...")
     try:
         combined = pd.read_csv(
@@ -419,7 +419,7 @@ def extract_countries() -> str:
     print("Country extraction completed.")
 
 
-def filter_authors():
+def filter_authors() -> None:
     """Filtering authors based on the amount of mentions and date."""
     print("Starting filter_authors function...")
     try:
