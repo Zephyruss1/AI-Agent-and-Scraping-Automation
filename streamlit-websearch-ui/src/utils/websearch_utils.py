@@ -345,10 +345,36 @@ class WebSearch:
                     else:
                         print("    ❌ [INFO] No Job title found.")
                         return ["None"]
-                except json.JSONDecodeError:
-                    print("Error: Response content is not valid JSON")
-                    return ["None"]
+                except json.JSONDecodeError as e:
+                    print(f"Error: Response content is not valid JSON: {e}")
 
+                    # Try to extract job title information from the raw content
+                    try:
+                        # First try to sanitize and fix common JSON issues
+                        sanitized_content = raw_content.replace("'", '"')
+                        try:
+                            parsed_content = json.loads(sanitized_content)
+                            job_title = parsed_content.get("job_title", "None")
+                            return [job_title] if job_title != "None" else ["None"]
+                        except json.JSONDecodeError:
+                            # If JSON parsing fails, try to extract job title using regex
+                            print(
+                                "JSON parsing failed, trying job title regex extraction"
+                            )
+
+                            # Look for structured format that might contain job title
+                            if "job_title" in raw_content:
+                                job_match = re.search(
+                                    r'"job_title"\s*:\s*"([^"]+)"', raw_content
+                                )
+                                if job_match:
+                                    return [job_match.group(1)]
+
+                            print("No valid job title found in the raw response")
+                            return ["None"]
+                    except Exception as ex:
+                        print(f"Failed to recover from JSON parsing error: {ex}")
+                        return ["None"]
             except KeyError:
                 print("Error: Unexpected response format")
                 return ["None"]
