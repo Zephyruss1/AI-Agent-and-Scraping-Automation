@@ -2,6 +2,7 @@ import os
 import warnings
 
 import pandas as pd
+import pycountry
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -312,6 +313,151 @@ def compare_authors() -> None:
     print("compare_authors function completed.")
 
 
+def extract_university() -> None:
+    """
+    Extract university names from affiliations and store them in a new column.
+    Handles both "University of X" and "X University" patterns.
+    """
+    print("Starting extract_university function...")
+    try:
+        combined = pd.read_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
+            parse_dates=["Date"],
+        )
+    except FileNotFoundError as e:
+        print(f"Error loading CSV file: {e}")
+        return
+
+    # Create new column if it doesn't exist
+    if "University_Name" not in combined.columns:
+        combined["University_Name"] = None
+
+    for _index, row in enumerate(combined["Affiliations"]):
+        if pd.notna(row) and "University" in row:
+            # Split the text at "University"
+            parts = row.split("University")
+
+            if len(parts) > 1:
+                # If there's content after "University" (like "University of X")
+                university_part = parts[1].strip()
+
+                # Check if the part after University is empty or just punctuation
+                if not university_part or university_part[0] in ",;.":
+                    # It's likely "X University" pattern
+                    prefix = parts[0].strip()
+                    # Get the last part before "University" (likely the university name)
+                    prefix_parts = prefix.split(",")
+                    university_name = prefix_parts[-1].strip() + " University"
+                else:
+                    # It's likely "University of X" pattern
+                    university_name = "University" + university_part.split(",")[0]
+
+                # Clean up any extra spaces and punctuation
+                university_name = university_name.strip()
+                combined.at[_index, "University_Name"] = university_name
+                print(f"{_index}, Original: {row}")
+                print(f"{_index}, Extracted: {university_name}")
+                print("---" * 30)
+
+    combined.to_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv"
+    )
+
+    print("extract_university function completed.")
+
+
+def extract_department() -> str:
+    print("Starting extract_department function...")
+    try:
+        combined = pd.read_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
+            parse_dates=["Date"],
+        )
+    except FileNotFoundError as e:
+        print(f"Error loading CSV file: {e}")
+        return
+
+    for _index, row in enumerate(combined["Affiliations"]):
+        if pd.notna(row) and "University" in row:
+            department = row.split("University")[0]
+            result = department.split(",")[0]
+            full_department = result
+            combined.at[_index, "Department"] = full_department
+            print(_index, full_department)
+
+        combined.to_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv"
+        )
+
+    print("Department extraction completed.")
+
+
+def extract_countries() -> str:
+    print("Starting extract_countries function...")
+    try:
+        combined = pd.read_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
+            parse_dates=["Date"],
+        )
+    except FileNotFoundError as e:
+        print(f"Error loading CSV file: {e}")
+        return
+
+    for _index, row in enumerate(combined["Affiliations"]):
+        if pd.notna(row):
+            for country in pycountry.countries:
+                if country.name in row:
+                    combined.at[_index, "Country"] = country.name
+                    print(_index, country.name)
+                    break
+    else:
+        print(_index, "No country found")
+
+    combined.to_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv"
+    )
+    print("Country extraction completed.")
+
+
+def filter_authors():
+    """Filtering authors based on the amount of mentions and date."""
+    print("Starting filter_authors function...")
+    try:
+        combined = pd.read_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
+            parse_dates=["Date"],
+        )
+    except FileNotFoundError as e:
+        print(f"Error loading CSV file: {e}")
+        return
+
+    if "Date" in combined.columns and not pd.api.types.is_datetime64_any_dtype(
+        combined["Date"]
+    ):
+        combined["Date"] = pd.to_datetime(combined["Date"], errors="coerce")
+
+    if "amount_of_mentions" in combined.columns:
+        # Sort by Authors and then by amount_of_mentions (descending)
+        combined_sorted = combined.sort_values(
+            by=["Authors", "amount_of_mentions", "Date"], ascending=[True, False, False]
+        )
+
+        # Drop duplicates keeping the one with highest amount_of_mentions (first after sorting)
+        combined_deduped = combined_sorted.drop_duplicates(
+            subset=["Authors"], keep="first"
+        )
+
+        print(f"Original shape: {combined.shape}")
+        print(f"Shape after keeping highest mentions: {combined_deduped.shape}")
+
+        # Save the result
+        combined_deduped.to_csv(
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
+            index=False,
+        )
+    print("Filtered authors saved to all_results.csv.")
+
+
 def explode_csv(*csv_files):
     """
     Explode the CSV files to get the authors in separate rows.
@@ -367,7 +513,14 @@ def main():
 
     print("Comparing authors across sources...")
     compare_authors()
-
+    print("Extracting university names...")
+    extract_university()
+    print("Extracting departments...")
+    extract_department()
+    print("Extracting countries...")
+    extract_countries()
+    print("Filtering authors based on mentions and date...")
+    filter_authors()
     print("Script execution completed successfully.")
 
 
