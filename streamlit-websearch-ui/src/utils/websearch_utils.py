@@ -123,8 +123,10 @@ class PerplexityConfig:
     """Perplexity API Config Class."""
 
     url: str = "https://api.perplexity.ai/chat/completions"
-    model: Literal["sonar-pro", "sonar-deep-research"] = "sonar-pro"
-    search_context_size: str = "Low"  # Low/Medium/High
+    model: Literal[
+        "sonar-pro", "sonar-deep-research", "sonar-reasoning", "sonar-reasoning-pro"
+    ] = "sonar-pro"
+    search_context_size: Literal["Low", "Medium", "High"] = "Low"
     temperature: float = 0.2
     api_key: str = field(default_factory=lambda: os.getenv("PERPLEXITY_API_KEY", ""))
 
@@ -626,7 +628,10 @@ def chatgpt_fill_empty_jobs_with_search(model: str, prompt: Optional[str] = None
 
 
 def perplexity_fill_empty_emails_with_search(
-    model: str, system_prompt: Optional[str] = None, prompt: Optional[str] = None
+    model: str,
+    system_prompt: Optional[str] = None,
+    prompt: Optional[str] = None,
+    search_context_size: Optional[str] = None,
 ):
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
@@ -654,7 +659,9 @@ def perplexity_fill_empty_emails_with_search(
                 name=str(author_name),
                 csv_file=_csv,
                 _keyword=keyword,
-                config=PerplexityConfig(model=model),
+                config=PerplexityConfig(
+                    model=model, search_context_size=search_context_size
+                ),
             )
             list_of_emails = web_search.perplexity_search_for_email(
                 system_prompt=system_prompt, prompt=prompt
@@ -670,7 +677,10 @@ def perplexity_fill_empty_emails_with_search(
 
 
 def perplexity_fill_empty_jobs_with_search(
-    model: str, system_prompt: Optional[str] = None, prompt: Optional[str] = None
+    model: str,
+    system_prompt: Optional[str] = None,
+    prompt: Optional[str] = None,
+    search_context_size: Optional[str] = None,
 ):
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
@@ -698,7 +708,9 @@ def perplexity_fill_empty_jobs_with_search(
             name=str(author_name),
             csv_file=_csv,
             _keyword=keyword,
-            config=PerplexityConfig(model=model),
+            config=PerplexityConfig(
+                model=model, search_context_size=search_context_size
+            ),
         )
         list_of_jobs = web_search.perplexity_search_for_job_title(
             system_prompt=system_prompt, prompt=prompt
