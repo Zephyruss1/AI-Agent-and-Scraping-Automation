@@ -39,7 +39,20 @@ def main():
         gpt_model = st.sidebar.selectbox("Select GPT Model", ["gpt-4o", "gpt-4o-mini"])
     else:
         perplexity_model = st.sidebar.selectbox(
-            "Select Perplexity Model", ["sonar-pro", "sonar-deep-research"]
+            "Select Perplexity Model",
+            [
+                "sonar-pro",
+                "sonar-deep-research",
+                "sonar-reasoning",
+                "sonar-reasoning-pro",
+            ],
+        )
+        perplexity_search_context_size = st.sidebar.selectbox(
+            "Select Perplexity Search Size", ["Low", "Medium", "High"]
+        )
+        st.sidebar.markdown(
+            '<p style="color: gray; font-size: 12px;">Perplexity measures how well a language model predicts text; search finds relevant information; context size is the maximum number of tokens the model can process at once.</p>',
+            unsafe_allow_html=True,
         )
 
     purpose_choice = st.sidebar.selectbox(
@@ -102,6 +115,7 @@ def main():
                     perplexity_model,
                     system_prompt=custom_system_prompt,
                     prompt=custom_prompt,
+                    search_context_size=perplexity_search_context_size,
                 )
                 st.success("Searching for email addresses...")
             elif purpose_choice == "Find job titles":
@@ -109,6 +123,7 @@ def main():
                     perplexity_model,
                     system_prompt=custom_system_prompt,
                     prompt=custom_prompt,
+                    search_context_size=perplexity_search_context_size,
                 )
                 st.success("Searching for job titles...")
         else:
