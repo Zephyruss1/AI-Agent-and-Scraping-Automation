@@ -245,10 +245,42 @@ class WebSearch:
                     else:
                         print("    ❌ [INFO] No email found.")
                         return ["None"]
-                except json.JSONDecodeError:
-                    print("Error: Response content is not valid JSON")
-                    return ["None"]
+                except json.JSONDecodeError as e:
+                    print(f"Error: Response content is not valid JSON: {e}")
+                    # Try to extract email addresses directly from the raw content
+                    try:
+                        # First try to sanitize and fix common JSON issues
+                        sanitized_content = raw_content.replace("'", '"')
+                        try:
+                            parsed_content = json.loads(sanitized_content)
+                            email_address = parsed_content.get("email_adress", "None")
+                            return (
+                                [email_address] if email_address != "None" else ["None"]
+                            )
+                        except json.JSONDecodeError:
+                            # If JSON parsing fails, try to extract emails using regex
+                            print("JSON parsing failed, trying email regex extraction")
+                            # Look for common email patterns in the raw response
+                            email_regex = r"[\w.+-]+@[\w-]+\.[\w.-]+"
+                            emails = re.findall(email_regex, raw_content)
+                            if emails:
+                                print(f"Found emails via regex: {emails}")
+                                return emails
 
+                            # Look for structured format that might contain emails
+                            if "email_adress" in raw_content:
+                                # Try to extract after the "email_adress": or "email_adress":
+                                email_match = re.search(
+                                    r'"email_adress"\s*:\s*"([^"]+)"', raw_content
+                                )
+                                if email_match:
+                                    return [email_match.group(1)]
+
+                            print("No valid emails found in the raw response")
+                            return ["None"]
+                    except Exception as ex:
+                        print(f"Failed to recover from JSON parsing error: {ex}")
+                        return ["None"]
             except KeyError:
                 print("Error: Unexpected response format")
                 return ["None"]
