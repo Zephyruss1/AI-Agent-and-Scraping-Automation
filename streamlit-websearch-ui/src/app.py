@@ -11,7 +11,7 @@ from utils.websearch_utils import (
 
 
 def main():
-    st.title("Web Search Tool")
+    st.title("AI Agent Web Search")
     st.sidebar.header("Configuration")
 
     spreadsheet_link = st.sidebar.text_input("Enter the link to your spreadsheet:")
