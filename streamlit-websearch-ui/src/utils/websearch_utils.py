@@ -497,6 +497,7 @@ class FindSimilarity:
 
                         if pd.notna(current_email) and current_email:
                             if email in current_email:
+                                match_found = True
                                 print(
                                     "     ⚠️ [INFO] Email already exists in the CSV file. Continuing to next email."
                                 )
