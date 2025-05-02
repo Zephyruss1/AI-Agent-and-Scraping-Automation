@@ -579,7 +579,9 @@ class FindSimilarity:
         print(f"✅ [INFO] Results saved to: '{self.csv_file_path}'")
 
 
-def chatgpt_fill_empty_emails_with_search(model: str, prompt: Optional[str] = None):
+def chatgpt_fill_empty_emails_with_search(
+    model: str, prompt: Optional[str] = None, temperature: Optional[float] = None
+):
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
     ]
@@ -606,7 +608,7 @@ def chatgpt_fill_empty_emails_with_search(model: str, prompt: Optional[str] = No
                 name=str(author_name),
                 csv_file=_csv,
                 _keyword=keyword,
-                config=BrowserAndGPTConfig(model=model),
+                config=BrowserAndGPTConfig(model=model, temperature=temperature),
             )
             list_of_emails = web_search.browser_use_find_email(prompt=prompt)
 
@@ -619,7 +621,9 @@ def chatgpt_fill_empty_emails_with_search(model: str, prompt: Optional[str] = No
             print("-----" * 15)
 
 
-def chatgpt_fill_empty_jobs_with_search(model: str, prompt: Optional[str] = None):
+def chatgpt_fill_empty_jobs_with_search(
+    model: str, prompt: Optional[str] = None, temperature: Optional[float] = None
+):
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
     ]
@@ -646,7 +650,7 @@ def chatgpt_fill_empty_jobs_with_search(model: str, prompt: Optional[str] = None
             name=str(author_name),
             csv_file=_csv,
             _keyword=keyword,
-            config=BrowserAndGPTConfig(model=model),
+            config=BrowserAndGPTConfig(model=model, temperature=temperature),
         )
         list_of_jobs = web_search.browser_use_find_job(prompt=prompt)
 
@@ -661,6 +665,7 @@ def perplexity_fill_empty_emails_with_search(
     system_prompt: Optional[str] = None,
     prompt: Optional[str] = None,
     search_context_size: Optional[str] = None,
+    temperature: Optional[float] = None,
 ):
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
@@ -689,7 +694,9 @@ def perplexity_fill_empty_emails_with_search(
                 csv_file=_csv,
                 _keyword=keyword,
                 config=PerplexityConfig(
-                    model=model, search_context_size=search_context_size
+                    model=model,
+                    search_context_size=search_context_size,
+                    temperature=temperature,
                 ),
             )
             list_of_emails = web_search.perplexity_search_for_email(
@@ -710,6 +717,7 @@ def perplexity_fill_empty_jobs_with_search(
     system_prompt: Optional[str] = None,
     prompt: Optional[str] = None,
     search_context_size: Optional[str] = None,
+    temperature: Optional[float] = None,
 ):
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
@@ -738,7 +746,9 @@ def perplexity_fill_empty_jobs_with_search(
             csv_file=_csv,
             _keyword=keyword,
             config=PerplexityConfig(
-                model=model, search_context_size=search_context_size
+                model=model,
+                search_context_size=search_context_size,
+                temperature=temperature,
             ),
         )
         list_of_jobs = web_search.perplexity_search_for_job_title(
