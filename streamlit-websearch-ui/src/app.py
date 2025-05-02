@@ -14,7 +14,10 @@ def main():
     st.title("AI Agent Web Search")
     st.sidebar.header("Configuration")
 
-    spreadsheet_link = st.sidebar.text_input("Enter the link to your spreadsheet:")
+    spreadsheet_link = st.sidebar.text_input(
+        "Enter the link to your spreadsheet:",
+        help="Link to the spreadsheet containing author names and keywords.",
+    )
 
     if st.sidebar.button("Load Spreadsheet"):
         if spreadsheet_link:
@@ -32,11 +35,17 @@ def main():
             st.warning("Please enter a valid spreadsheet link.")
 
     model_choice = st.sidebar.selectbox(
-        "Select AI Model", ["ChatGPT [Browser-Use]", "Perplexity"]
+        "Select AI Model",
+        ["ChatGPT [Browser-Use]", "Perplexity"],
+        help="Select the AI model you want to use for the search.",
     )
 
     if model_choice == "ChatGPT [Browser-Use]":
-        gpt_model = st.sidebar.selectbox("Select GPT Model", ["gpt-4o", "gpt-4o-mini"])
+        gpt_model = st.sidebar.selectbox(
+            "Select GPT Model",
+            ["gpt-4o", "gpt-4o-mini"],
+            help="Select the model you want to use for the search.",
+        )
     else:
         perplexity_model = st.sidebar.selectbox(
             "Select Perplexity Model",
@@ -46,17 +55,27 @@ def main():
                 "sonar-reasoning",
                 "sonar-reasoning-pro",
             ],
+            help="Select the model you want to use for the search.",
         )
         perplexity_search_context_size = st.sidebar.selectbox(
-            "Select Perplexity Search Size", ["Low", "Medium", "High"]
-        )
-        st.sidebar.markdown(
-            '<p style="color: gray; font-size: 12px;">Perplexity measures how well a language model predicts text; search finds relevant information; context size is the maximum number of tokens the model can process at once.</p>',
-            unsafe_allow_html=True,
+            "Select Perplexity Search Size",
+            ["Low", "Medium", "High"],
+            help="Perplexity measures how well a language model predicts text; search finds relevant information; context size is the maximum number of tokens the model can process at once.",
         )
 
+    temperature_choice = st.sidebar.slider(
+        "Temperature",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.2,
+        step=0.1,
+        help="Adjust the randomness of the AI's output. Lower values make it more deterministic. Higher values make it more creative.",
+    )
+
     purpose_choice = st.sidebar.selectbox(
-        "Select Purpose", ["Find email addresses", "Find job titles"]
+        "Select Purpose",
+        ["Find email addresses", "Find job titles"],
+        help="Select the purpose of the search.",
     )
 
     if model_choice == "Perplexity":
@@ -67,6 +86,7 @@ def main():
             f"Search the {{self.keyword_index}} field for that author's {'email address' if purpose_choice == 'Find email addresses' else 'job title'}. "
             f"If no {'email address' if purpose_choice == 'Find email addresses' else 'job title'} is found, return 'None'. "
             "Output only the result or 'None' with no additional commentary.",
+            help="Please add always {self.author_name} and {self.keyword_index} to mention if you using custom prompt",
         )
         if custom_system_prompt:
             st.sidebar.success("Custom System Prompt added successfully!")
@@ -79,6 +99,7 @@ def main():
             "Custom Prompt for ChatGPT:",
             placeholder=f"1. Search '{{self.author_name}} {'email address' if purpose_choice == 'Find email addresses' else 'job title'} in the {{self.keyword_index}} field' and enter. "
             f"2. Output only the {'email addresses' if purpose_choice == 'Find email addresses' else 'job titles'} or 'None'—no additional explanations.",
+            help="Please add always {self.author_name} and {self.keyword_index} to mention if you using custom prompt",
         )
         if custom_prompt:
             st.sidebar.success("Custom prompt added successfully!")
@@ -87,14 +108,14 @@ def main():
         custom_prompt = st.sidebar.text_area(
             "Custom Prompt for Perplexity:",
             placeholder=f"{{self.author_name}} {'email address' if purpose_choice == 'Find email addresses' else 'job title'}",
+            help="Please add always {self.author_name} and {self.keyword_index} to mention if you using custom prompt",
         )
         if custom_prompt:
             st.sidebar.success("Custom prompt added successfully!")
     else:
         custom_prompt = None
     st.sidebar.markdown(
-        '<p style="color: gray; font-size: 12px;">This prompt will guide the AI in its search process.</p>'
-        '<p style="color: gray; font-size: 12px;">Please add always {self.author_name} and {self.keyword_index} to mention</p>',
+        '<p style="color: gray; font-size: 12px;">This prompt will guide the AI in its search process.</p>',
         unsafe_allow_html=True,
     )
 
@@ -116,6 +137,7 @@ def main():
                     system_prompt=custom_system_prompt,
                     prompt=custom_prompt,
                     search_context_size=perplexity_search_context_size,
+                    temperature=temperature_choice,
                 )
                 st.success("Searching for email addresses...")
             elif purpose_choice == "Find job titles":
@@ -124,6 +146,7 @@ def main():
                     system_prompt=custom_system_prompt,
                     prompt=custom_prompt,
                     search_context_size=perplexity_search_context_size,
+                    temperature=temperature_choice,
                 )
                 st.success("Searching for job titles...")
         else:
