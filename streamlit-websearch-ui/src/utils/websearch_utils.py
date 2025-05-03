@@ -133,7 +133,7 @@ class PerplexityConfig:
     model: Literal[
         "sonar-pro", "sonar-deep-research", "sonar-reasoning", "sonar-reasoning-pro"
     ] = "sonar-pro"
-    search_context_size: Literal["Low", "Medium", "High"] = "Low"
+    search_context_size: Literal["low", "medium", "high"] = "low"
     temperature: float = 0.2
     api_key: str = field(default_factory=lambda: os.getenv("PERPLEXITY_API_KEY", ""))
 
