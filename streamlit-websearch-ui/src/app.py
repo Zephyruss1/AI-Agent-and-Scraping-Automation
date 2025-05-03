@@ -19,20 +19,19 @@ def main():
         help="Link to the spreadsheet containing author names and keywords.",
     )
 
-    if st.sidebar.button("Load Spreadsheet"):
-        if spreadsheet_link:
-            try:
-                _, condition = load_spreadsheet(spreadsheet_link)
-                st.success("Spreadsheet loaded successfully!")
-            except Exception as e:
-                st.error(f"Error loading spreadsheet: {e}")
-            try:
-                convert_excel_to_csv()
-                st.success("Spreadsheet converted to CSV successfully!")
-            except Exception as e:
-                st.error(f"Error converting spreadsheet to CSV: {e}")
-        else:
-            st.warning("Please enter a valid spreadsheet link.")
+    if spreadsheet_link:
+        try:
+            _, condition = load_spreadsheet(spreadsheet_link)
+            st.success("Spreadsheet loaded successfully!")
+        except Exception as e:
+            st.error(f"Error loading spreadsheet: {e}")
+        try:
+            convert_excel_to_csv()
+            st.success("Spreadsheet converted to CSV successfully!")
+        except Exception as e:
+            st.error(f"Error converting spreadsheet to CSV: {e}")
+    else:
+        st.warning("Please enter a valid spreadsheet link.")
 
     model_choice = st.sidebar.selectbox(
         "Select AI Model",
@@ -77,6 +76,14 @@ def main():
         ["Find email addresses", "Find job titles"],
         help="Select the purpose of the search.",
     )
+
+    if spreadsheet_link:
+        sheet_url = f"{spreadsheet_link.replace('edit#gid=', 'export?format=csv&gid=')}"
+        # Embed with iframe
+        st.markdown(
+            f'<iframe src="{sheet_url}" width="700" height="500"></iframe>',
+            unsafe_allow_html=True,
+        )
 
     if model_choice == "Perplexity":
         st.sidebar.subheader("Custom System Prompt (Optional)")
