@@ -33,6 +33,15 @@ def main():
     else:
         st.warning("Please enter a valid spreadsheet link.")
 
+    start_index_selector = st.sidebar.number_input(
+        "Select Start Index",
+        min_value=0,
+        max_value=1000,
+        value=0,
+        step=1,
+        help="Select the row index to start the author name you want to search for.",
+    )
+
     model_choice = st.sidebar.selectbox(
         "Select AI Model",
         ["ChatGPT [Browser-Use]", "Perplexity"],
@@ -132,10 +141,16 @@ def main():
 
         if model_choice == "ChatGPT [Browser-Use]":
             if purpose_choice == "Find email addresses":
-                chatgpt_fill_empty_emails_with_search(gpt_model, prompt=custom_prompt)
+                chatgpt_fill_empty_emails_with_search(
+                    gpt_model, prompt=custom_prompt, start_index=start_index_selector
+                )
                 st.success("Searching for email addresses...")
             elif purpose_choice == "Find job titles":
-                chatgpt_fill_empty_jobs_with_search(gpt_model, prompt=custom_prompt)
+                chatgpt_fill_empty_jobs_with_search(
+                    gpt_model,
+                    prompt=custom_prompt,
+                    start_index=start_index_selector,
+                )
                 st.success("Searching for job titles...")
         elif model_choice == "Perplexity":
             if purpose_choice == "Find email addresses":
@@ -145,6 +160,7 @@ def main():
                     prompt=custom_prompt,
                     search_context_size=perplexity_search_context_size,
                     temperature=temperature_choice,
+                    start_index=start_index_selector,
                 )
                 st.success("Searching for email addresses...")
             elif purpose_choice == "Find job titles":
@@ -154,6 +170,7 @@ def main():
                     prompt=custom_prompt,
                     search_context_size=perplexity_search_context_size,
                     temperature=temperature_choice,
+                    start_index=start_index_selector,
                 )
                 st.success("Searching for job titles...")
         else:
