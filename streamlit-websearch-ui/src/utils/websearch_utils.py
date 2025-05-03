@@ -119,6 +119,13 @@ def _load_csv(file_name: str) -> object:
 
 
 @dataclass(frozen=True)
+class CSVconfig:
+    """CSV Config Class."""
+
+    start_index: int = 0
+
+
+@dataclass(frozen=True)
 class PerplexityConfig:
     """Perplexity API Config Class."""
 
@@ -145,7 +152,7 @@ class BrowserAndGPTConfig:
     disable_security: bool = True
     user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     model: Literal["gpt-4o", "gpt-4o-mini"] = "gpt-4o"
-    temprature: float = 0.2
+    temperature: float = 0.2
 
     def get_headers(self) -> dict:
         """Dynamically returning headers."""
@@ -580,7 +587,10 @@ class FindSimilarity:
 
 
 def chatgpt_fill_empty_emails_with_search(
-    model: str, prompt: Optional[str] = None, temperature: Optional[float] = None
+    model: str,
+    prompt: Optional[str] = None,
+    temperature: Optional[float] = None,
+    start_index: Optional[int] = None,
 ):
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
@@ -594,7 +604,8 @@ def chatgpt_fill_empty_emails_with_search(
             _csv["email"] = ""  # Add the 'email' column if missing
 
         # Step 5: Search for email addresses using the AI Search
-        for _index, row in _csv.iterrows():
+        start_index = CSVconfig.start_index if CSVconfig.start_index is not None else 0
+        for _index, row in _csv.iloc[start_index:].iterrows():
             keyword = row["Keyword"]
 
             author_name = row["Authors"]
@@ -622,7 +633,10 @@ def chatgpt_fill_empty_emails_with_search(
 
 
 def chatgpt_fill_empty_jobs_with_search(
-    model: str, prompt: Optional[str] = None, temperature: Optional[float] = None
+    model: str,
+    prompt: Optional[str] = None,
+    temperature: Optional[float] = None,
+    start_index: Optional[int] = None,
 ):
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
@@ -636,7 +650,8 @@ def chatgpt_fill_empty_jobs_with_search(
             _csv["job_title"] = ""  # Add the 'job_title' column if missing
 
     # Step 7: Search for job title addresses using the AI Search
-    for _index, row in _csv.iterrows():
+    start_index = start_index if start_index is not None else 0
+    for _index, row in _csv.iloc[start_index:].iterrows():
         keyword = row["Keyword"]
 
         author_name = row["Authors"]
@@ -666,6 +681,7 @@ def perplexity_fill_empty_emails_with_search(
     prompt: Optional[str] = None,
     search_context_size: Optional[str] = None,
     temperature: Optional[float] = None,
+    start_index: Optional[int] = None,
 ):
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
@@ -679,7 +695,8 @@ def perplexity_fill_empty_emails_with_search(
             _csv["email"] = ""  # Add the 'email' column if missing
 
         # Step 5: Search for email addresses using the AI Search
-        for _index, row in _csv.iterrows():
+        start_index = start_index if start_index is not None else 0
+        for _index, row in _csv.iloc[start_index:].iterrows():
             keyword = row["Keyword"]
 
             author_name = row["Authors"]
@@ -718,6 +735,7 @@ def perplexity_fill_empty_jobs_with_search(
     prompt: Optional[str] = None,
     search_context_size: Optional[str] = None,
     temperature: Optional[float] = None,
+    start_index: Optional[int] = None,
 ):
     csv_paths = [
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
@@ -731,7 +749,8 @@ def perplexity_fill_empty_jobs_with_search(
             _csv["job_title"] = ""  # Add the 'job_title' column if missing
 
     # Step 7: Search for job title addresses using the AI Search
-    for _index, row in _csv.iterrows():
+    start_index = start_index if start_index is not None else 0
+    for _index, row in _csv.iloc[start_index:].iterrows():
         keyword = row["Keyword"]
 
         author_name = row["Authors"]
