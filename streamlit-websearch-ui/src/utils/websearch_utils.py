@@ -166,17 +166,23 @@ class EmailFormat(BaseModel):
 
 
 class JobTitleFormat(BaseModel):
-    """ "Job Title Format for Perplexity API."""
+    """Job Title Format for Perplexity API."""
 
     job_title: str
+
+
+class AnswerFormat(BaseModel):
+    """General Search for Perplexity API."""
+
+    answer: str
 
 
 class WebSearch:
     def __init__(
         self,
-        name: str,
-        csv_file: pd.DataFrame,
-        _keyword: str,
+        name: Optional[str],
+        csv_file: Optional[pd.DataFrame],
+        _keyword: Optional[str],
         config: Optional[PerplexityConfig] = None,
     ) -> None:
         if config is None:
@@ -194,11 +200,77 @@ class WebSearch:
         )
 
         # This will search for text within quotes
-        match = re.search(r'"([^"]+)"', self.keyword_index)
-        if match:
-            self.keyword_index = match.group(1)
-        else:
-            self.keyword_index = ""
+        if not isinstance(self.keyword_index, str):
+            self.keyword_index = (
+                str(self.keyword_index) if self.keyword_index is not None else ""
+            )
+
+    def perplexity_general_search(self, system_prompt: str = None, prompt: str = None):
+        """General search for Perplexity"""
+        print("\n📍 Step 8: [Perplexity] Gathering data!")
+        system_content = f"""{system_prompt}""" or (
+            "You are a helpful web searcher assistant. The user will provide an author name."
+            f"Your task is: Search the goal on internet with {self.keyword_index} field "
+            "Output only the search results—no additional explanations."
+        )
+        if "author_name" in system_prompt:
+            system_prompt = system_prompt.replace("author_name", self.author_name)
+        if "author_name" in prompt:
+            prompt = prompt.replace("author_name", self.author_name)
+
+        if "keyword_index" in system_prompt:
+            system_prompt = system_prompt.replace("keyword_index", self.keyword_index)
+        if "keyword_index" in prompt:
+            prompt = prompt.replace("keyword_index", self.keyword_index)
+        content = f"""{prompt}"""
+        print(f"SYSTEM_PROMPT: {system_content}")
+        print(f"PROMPT: {content}")
+
+        payload = {
+            "model": self.config.model,
+            "search_context_size": self.config.search_context_size,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": system_content,
+                },
+                {
+                    "role": "user",
+                    "content": content,
+                },
+            ],
+            "temperature": self.config.temperature,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"schema": AnswerFormat.model_json_schema()},
+            },
+        }
+
+        response = requests.post(
+            self.config.url, headers=self.config.get_headers(), json=payload
+        )
+        print(f"system_prompt: {payload.get('messages')[1].get('content')}")
+        if response.status_code == 200:
+            try:
+                response_json = response.json()
+                raw_content = response_json["choices"][0]["message"]["content"]
+                # Use regex to extract the JSON part from the full content
+
+                # Try to extract the JSON string
+                json_match = re.search(r"\{.*\}", raw_content, re.DOTALL)
+                if json_match:
+                    try:
+                        parsed = json.loads(json_match.group(0))
+                        answer = parsed.get("answer", "No answer found")
+                        print(f"📘 Answer: {answer}")
+                        return answer
+                    except json.JSONDecodeError as e:
+                        print(f"⚠️ Failed to parse JSON: {e}")
+                else:
+                    print("⚠️ No JSON object found.")
+                return "No answer found"
+            except Exception as err:
+                print(f"Unexcepted error: {err}")
 
     def perplexity_search_for_email(
         self, system_prompt: Optional[str] = None, prompt: Optional[str] = None
@@ -211,6 +283,15 @@ class WebSearch:
             "If you find no email addresses, return 'None'. "
             "Output only the emails or 'None'—no additional explanations."
         )
+        if "author_name" in system_prompt:
+            system_prompt = system_prompt.replace("author_name", self.author_name)
+        if "author_name" in prompt:
+            prompt = prompt.replace("author_name", self.author_name)
+
+        if "keyword_index" in system_prompt:
+            system_prompt = system_prompt.replace("keyword_index", self.keyword_index)
+        if "keyword_index" in prompt:
+            prompt = prompt.replace("keyword_index", self.keyword_index)
         content = f"""{prompt}""" or (f"{self.author_name} email adress")
         print(f"SYSTEM_PROMPT: {system_content}")
         print(f"PROMPT: {content}")
@@ -309,6 +390,15 @@ class WebSearch:
             "If no job title is found, return 'None'. "
             "Output only the job title or 'None' with no additional commentary."
         )
+        if "author_name" in system_prompt:
+            system_prompt = system_prompt.replace("author_name", self.author_name)
+        if "author_name" in prompt:
+            prompt = prompt.replace("author_name", self.author_name)
+
+        if "keyword_index" in system_prompt:
+            system_prompt = system_prompt.replace("keyword_index", self.keyword_index)
+        if "keyword_index" in prompt:
+            prompt = prompt.replace("keyword_index", self.keyword_index)
         content = f"""{prompt}""" or (f"{self.author_name} job title")
         print(f"SYSTEM_PROMPT: {system_content}")
         print(f"PROMPT: {content}")
@@ -445,6 +535,63 @@ class WebSearch:
             res = ["None"]
         self.browser.close()
         return res
+
+
+class InsertResults:
+    """Inserting results found from General Search"""
+
+    def __init__(self, csv_file: pd.DataFrame, csv_file_path: str) -> None:
+        """
+        Initialize with a DataFrame and its file path.
+
+        :param csv_file: The DataFrame object.
+        :param csv_file_path: The path of the CSV file (including the file name).
+        """
+        self.csv_file = csv_file
+        self.csv_file_path = csv_file_path  # Store the file path
+        self.headers = [header for header in self.csv_file.columns]
+
+    def receive_and_save_results(self, result: Optional[List[str]]) -> None:
+        """Saving results into CSV file"""
+        print("\n📍 Step 9: Saving to Csv File!")
+        if "search_results" not in self.headers:
+            self.csv_file["search_results"] = ""
+
+        if isinstance(result, str):
+            result = [result]
+        if isinstance(result, list):
+            result = ", ".join(result)
+
+        print(f"🔄🕒💭 Processing result: {result}")
+
+        for _index, row in self.csv_file.iterrows():
+            try:
+                print(f"New Results: {result}")
+                current_result = row.get("search_results", "")
+                print(f"Old Results: {current_result}")
+                if pd.notna(current_result) and current_result:
+                    try:
+                        new_result = f"{current_result}, {result}"
+                        self.csv_file.at[_index, "search_results"] = new_result
+                        print(
+                            f"     🔄 [INFO] Updating result: {current_result} -> {result}"
+                        )
+                    except Exception as err:
+                        raise Exception(f"Error: {err}") from err
+                else:
+                    self.csv_file.at[_index, "search_results"] = result
+                    [
+                        print(
+                            f"     🔄 [INFO] Adding result: {result} to index: {_index}"
+                        )
+                    ]
+            except Exception as err:
+                raise Exception(f"Error: {err}") from err
+
+            print("---" * 30)
+        # Save the updated DataFrame to the same path
+        self.csv_file.to_csv(self.csv_file_path, index=False)
+        print(f"✅ [INFO] Results saved to: '{self.csv_file_path}'")
 
 
 class FindSimilarity:
@@ -650,7 +797,7 @@ def chatgpt_fill_empty_jobs_with_search(
             _csv["job_title"] = ""  # Add the 'job_title' column if missing
 
     # Step 7: Search for job title addresses using the AI Search
-    start_index = start_index if start_index is not None else 0
+    start_index = start_index if start_index is not None else CSVconfig.start_index
     for _index, row in _csv.iloc[start_index:].iterrows():
         keyword = row["Keyword"]
 
@@ -675,6 +822,52 @@ def chatgpt_fill_empty_jobs_with_search(
         similarity_finder.find_job_title_and_save(list_of_jobs, _index)
 
 
+def perplexity_general_search(
+    model: str,
+    system_prompt: Optional[str] = None,
+    prompt: Optional[str] = None,
+    search_context_size: Optional[str] = None,
+    temperature: Optional[float] = None,
+    start_index: Optional[int] = None,
+):
+    csv_paths = [
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
+    ]
+
+    for csv_path in csv_paths:
+        _csv = _load_csv(file_name=csv_path)
+
+        headers = [header for header in _csv.columns]
+        if "search_results" not in headers:  # Ensure the column name matches
+            _csv["search_results"] = ""  # Add the 'search_results' column if missing
+
+        # Step 5: Search for email addresses using the AI Search
+        start_index = start_index if start_index is not None else CSVconfig.start_index
+        for _index, row in _csv.iloc[start_index:].iterrows():
+            keyword = row["Keyword"]
+            author_name = row["Authors"]
+
+            web_search = WebSearch(
+                name=str(author_name),
+                csv_file=_csv,
+                _keyword=keyword,
+                config=PerplexityConfig(
+                    model=model,
+                    search_context_size=search_context_size,
+                    temperature=temperature,
+                ),
+            )
+            list_of_results = web_search.perplexity_general_search(
+                system_prompt=system_prompt, prompt=prompt
+            )
+
+            # Step 6: Find similarity between the author names and emails
+            df_csv = _load_csv(file_name=csv_path)
+            results = InsertResults(csv_file=df_csv, csv_file_path=f"{csv_path}")
+            results.receive_and_save_results(list_of_results)
+            print("-----" * 15)
+
+
 def perplexity_fill_empty_emails_with_search(
     model: str,
     system_prompt: Optional[str] = None,
@@ -695,7 +888,7 @@ def perplexity_fill_empty_emails_with_search(
             _csv["email"] = ""  # Add the 'email' column if missing
 
         # Step 5: Search for email addresses using the AI Search
-        start_index = start_index if start_index is not None else 0
+        start_index = start_index if start_index is not None else CSVconfig.start_index
         for _index, row in _csv.iloc[start_index:].iterrows():
             keyword = row["Keyword"]
 
@@ -749,7 +942,7 @@ def perplexity_fill_empty_jobs_with_search(
             _csv["job_title"] = ""  # Add the 'job_title' column if missing
 
     # Step 7: Search for job title addresses using the AI Search
-    start_index = start_index if start_index is not None else 0
+    start_index = start_index if start_index is not None else CSVconfig.start_index
     for _index, row in _csv.iloc[start_index:].iterrows():
         keyword = row["Keyword"]
 
