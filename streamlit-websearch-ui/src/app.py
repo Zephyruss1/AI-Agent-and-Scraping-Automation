@@ -7,6 +7,7 @@ from utils.websearch_utils import (
     load_spreadsheet,
     perplexity_fill_empty_emails_with_search,
     perplexity_fill_empty_jobs_with_search,
+    perplexity_general_search,
 )
 
 
@@ -21,7 +22,7 @@ def main():
 
     if spreadsheet_link:
         try:
-            _, condition = load_spreadsheet(spreadsheet_link)
+            df, condition = load_spreadsheet(spreadsheet_link)
             st.success("Spreadsheet loaded successfully!")
         except Exception as e:
             st.error(f"Error loading spreadsheet: {e}")
@@ -67,7 +68,7 @@ def main():
         )
         perplexity_search_context_size = st.sidebar.selectbox(
             "Select Perplexity Search Size",
-            ["Low", "Medium", "High"],
+            ["low", "medium", "high"],
             help="Perplexity measures how well a language model predicts text; search finds relevant information; context size is the maximum number of tokens the model can process at once.",
         )
 
@@ -82,7 +83,7 @@ def main():
 
     purpose_choice = st.sidebar.selectbox(
         "Select Purpose",
-        ["Find email addresses", "Find job titles"],
+        ["General Search", "Find Email Addresses", "Find Job Titles"],
         help="Select the purpose of the search.",
     )
 
@@ -96,16 +97,25 @@ def main():
 
     if model_choice == "Perplexity":
         st.sidebar.subheader("Custom System Prompt (Optional)")
-        custom_system_prompt = st.sidebar.text_area(
-            "Custom System Prompt for Perplexity:",
-            placeholder="You are a web search assistant. The user will provide an author name. "
-            f"Search the {{self.keyword_index}} field for that author's {'email address' if purpose_choice == 'Find email addresses' else 'job title'}. "
-            f"If no {'email address' if purpose_choice == 'Find email addresses' else 'job title'} is found, return 'None'. "
-            "Output only the result or 'None' with no additional commentary.",
-            help="Please add always {self.author_name} and {self.keyword_index} to mention if you using custom prompt",
-        )
-        if custom_system_prompt:
-            st.sidebar.success("Custom System Prompt added successfully!")
+        if purpose_choice == "General Search":
+            custom_system_prompt = st.sidebar.text_area(
+                "Custom System Prompt for Perplexity:",
+                placeholder="""You are a helpful web searcher assistant. The user will provide content.
+                Your task is: Search the content on internet.
+                Output only the search results—no additional explanations.""",
+                help="Please add always author_name and keyword_index to mention if you using custom prompt",
+            )
+        else:
+            custom_system_prompt = st.sidebar.text_area(
+                "Custom System Prompt for Perplexity:",
+                placeholder="You are a web search assistant. The user will provide an author name. "
+                f"Search the {{self.keyword_index}} field for that author's {'email address' if purpose_choice == 'Find Email Addresses' else 'job title'}. "
+                f"If no {'email address' if purpose_choice == 'Find Email Addresses' else 'job title'} is found, return 'None'. "
+                "Output only the result or 'None' with no additional commentary.",
+                help="Please add always author_name and keyword_index to mention if you using custom prompt",
+            )
+
+        st.sidebar.success("Custom System Prompt added successfully!")
     else:
         custom_system_prompt = None
 
@@ -113,21 +123,28 @@ def main():
         st.sidebar.subheader("Custom Prompt (Optional)")
         custom_prompt = st.sidebar.text_area(
             "Custom Prompt for ChatGPT:",
-            placeholder=f"1. Search '{{self.author_name}} {'email address' if purpose_choice == 'Find email addresses' else 'job title'} in the {{self.keyword_index}} field' and enter. "
-            f"2. Output only the {'email addresses' if purpose_choice == 'Find email addresses' else 'job titles'} or 'None'—no additional explanations.",
-            help="Please add always {self.author_name} and {self.keyword_index} to mention if you using custom prompt",
+            placeholder=f"1. Search '{{self.author_name}} {'email address' if purpose_choice == 'Find Email Addresses' else 'job title'} in the {{self.keyword_index}} field' and enter. "
+            f"2. Output only the {'email addresses' if purpose_choice == 'Find Email Addresses' else 'job titles'} or 'None'—no additional explanations.",
+            help="Please add always author_name and keyword_index to mention if you using custom prompt",
         )
         if custom_prompt:
             st.sidebar.success("Custom prompt added successfully!")
     elif model_choice == "Perplexity":
-        st.sidebar.subheader("Custom Prompt (Optional)")
-        custom_prompt = st.sidebar.text_area(
-            "Custom Prompt for Perplexity:",
-            placeholder=f"{{self.author_name}} {'email address' if purpose_choice == 'Find email addresses' else 'job title'}",
-            help="Please add always {self.author_name} and {self.keyword_index} to mention if you using custom prompt",
-        )
-        if custom_prompt:
-            st.sidebar.success("Custom prompt added successfully!")
+        st.sidebar.subheader("Custom Prompt (Required)")
+        if purpose_choice == "General Search":
+            custom_prompt = st.sidebar.text_area(
+                "Custom Prompt for Perplexity:",
+                placeholder=""" --> Write your prompt here. :) <--""",
+                help="Please add always author_name and keyword_index to mention if you using custom prompt",
+            )
+        else:
+            custom_prompt = st.sidebar.text_area(
+                "Custom Prompt for Perplexity:",
+                placeholder=f"{{self.author_name}} {'email address' if purpose_choice == 'Find Email Addresses' else 'job title'}",
+                help="Please add always author_name and keyword_index to mention if you using custom prompt",
+            )
+
+        st.sidebar.success("Custom prompt added successfully!")
     else:
         custom_prompt = None
     st.sidebar.markdown(
@@ -140,12 +157,12 @@ def main():
         output_xlsx_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.xlsx"
 
         if model_choice == "ChatGPT [Browser-Use]":
-            if purpose_choice == "Find email addresses":
+            if purpose_choice == "Find Email Addresses":
                 chatgpt_fill_empty_emails_with_search(
                     gpt_model, prompt=custom_prompt, start_index=start_index_selector
                 )
                 st.success("Searching for email addresses...")
-            elif purpose_choice == "Find job titles":
+            elif purpose_choice == "Find Job Titles":
                 chatgpt_fill_empty_jobs_with_search(
                     gpt_model,
                     prompt=custom_prompt,
@@ -153,7 +170,16 @@ def main():
                 )
                 st.success("Searching for job titles...")
         elif model_choice == "Perplexity":
-            if purpose_choice == "Find email addresses":
+            if purpose_choice == "General Search":
+                perplexity_general_search(
+                    perplexity_model,
+                    system_prompt=custom_system_prompt,
+                    prompt=custom_prompt,
+                    search_context_size=perplexity_search_context_size,
+                    temperature=temperature_choice,
+                    start_index=start_index_selector,
+                )
+            elif purpose_choice == "Find Email Addresses":
                 perplexity_fill_empty_emails_with_search(
                     perplexity_model,
                     system_prompt=custom_system_prompt,
@@ -163,7 +189,7 @@ def main():
                     start_index=start_index_selector,
                 )
                 st.success("Searching for email addresses...")
-            elif purpose_choice == "Find job titles":
+            elif purpose_choice == "Find Job Titles":
                 perplexity_fill_empty_jobs_with_search(
                     perplexity_model,
                     system_prompt=custom_system_prompt,
