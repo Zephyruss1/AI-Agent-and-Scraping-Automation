@@ -37,7 +37,7 @@ INSTTOKEN = os.getenv("ELSEVIER_INSTTOKEN")
 # Try to load each CSV file individually
 try:
     sciencedirect_path = os.path.join(
-        BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results_1_merged.csv"
+        BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results.csv"
     )
     sciencedirect_csv = pd.read_csv(sciencedirect_path)
     print("ScienceDirect data loaded successfully.")
@@ -45,7 +45,7 @@ except Exception as e:
     print(f"Error loading ScienceDirect data: {e}")
 
 try:
-    pubmed_path = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results_1.csv")
+    pubmed_path = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pubmed_results.csv")
     pubmed_csv = pd.read_csv(pubmed_path)
     print("PubMed data loaded successfully.")
 except Exception as e:
@@ -53,7 +53,7 @@ except Exception as e:
 
 try:
     springer_path = os.path.join(
-        BASE_DIR, "sd_pm_ls_scraper/output/springer_results_1.csv"
+        BASE_DIR, "sd_pm_ls_scraper/output/springer_results.csv"
     )
     springer_csv = pd.read_csv(springer_path)
     print("SpringerLink data loaded successfully.")
@@ -91,8 +91,8 @@ def reformat_datetime(*csv_files: str) -> None:
 
             # Save the reformatted CSV
             filtered_csv_path = csv_file.rsplit(".csv", 1)[0]
-            data.to_csv(f"{filtered_csv_path}_tests.csv", index=False)
-            print(f"Reformatted CSV saved to {filtered_csv_path}_tests.csv.")
+            data.to_csv(f"{filtered_csv_path}.csv", index=False)
+            print(f"Reformatted CSV saved to {filtered_csv_path}.csv.")
     except Exception as e:
         print(f"Error reformatting datetime: {e}")
 
@@ -219,15 +219,15 @@ def amount_of_mentions() -> None:
     # Load all three exploded CSV files
     try:
         df1 = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_1_tests.csv",
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv",
             parse_dates=["Date"],
         )
         df2 = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_1_merged_tests.csv",
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
             parse_dates=["Date"],
         )
         df3 = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_1_tests.csv",
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv",
             parse_dates=["Date"],
         )
     except FileNotFoundError as e:
@@ -237,80 +237,30 @@ def amount_of_mentions() -> None:
     # Combine all dataframes by stacking them vertically
     combined = pd.concat([df1, df2, df3], ignore_index=True)
 
-    # Verify required columns exist in the combined dataframe
-    required_columns = ["Authors", "DOI"]
-    if all(col in combined.columns for col in required_columns):
-        # Identify unique author-DOI combinations
-        unique_author_dois = combined.drop_duplicates(subset=["Authors", "DOI"])
+    # Step 1: Count unique DOIs per author (mentions)
+    combined["Authors"] = combined["Authors"].str.lower()
 
-        # Count author mentions based on unique author-DOI combinations
-        author_counts = unique_author_dois["Authors"].value_counts().reset_index()
-        author_counts.columns = ["Authors", "amount_of_mentions"]
+    # Step 2: group by lowercase authors and count unique DOIs
+    aom = combined.groupby("Authors")["DOI"].nunique().reset_index()
+    aom.columns = ["Authors", "amount_of_mentions"]
 
-        # Merge the counts back into the original combined dataframe
-        combined = pd.merge(combined, author_counts, on="Authors", how="left")
-    else:
-        print(
-            f"Missing required columns: {required_columns}. Available columns are: {combined.columns.tolist()}"
-        )
+    # Step 2: Sort by date, newest first
+    df_sorted = combined.sort_values(by="Date", ascending=False)
 
-    # Save the cleaned files
-    combined.to_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
-        index=False,
+    # Step 3: Keep only the most recent paper per author
+    df_newest = df_sorted.drop_duplicates(subset=["Authors"], keep="first")
+
+    # Step 4: Merge the amount_of_mentions (AOM) into newest papers
+    df_newest = pd.merge(
+        df_newest.drop(columns=["amount_of_mentions"], errors="ignore"),
+        aom,
+        on="Authors",
+        how="left",
     )
 
-    print("Processing complete. Cleaned files saved.")
-
-
-def compare_authors() -> None:
-    print("Starting compare_authors function...")
-    # Load the combined CSV file
-    try:
-        combined = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
-            parse_dates=["Date"],
-        )
-    except FileNotFoundError as e:
-        print(f"Error loading CSV file: {e}")
-        return
-
-    # Check if Source column exists to properly identify cross-source duplicates
-    if "Source" not in combined.columns:
-        print("Warning: 'Source' column not found. Adding default source information.")
-        # You may need to add source information if it's not already there
-        combined["Source"] = "Unknown"
-
-    # Find authors that appear multiple times
-    author_counts = combined["Authors"].value_counts()
-    duplicate_authors = author_counts[author_counts >= 2].index.tolist()
-    print(f"Found {len(duplicate_authors)} authors that appear multiple times.")
-
-    # Use a more efficient approach: create a list to store filtered rows
-    filtered_rows = []
-
-    # Process each author group
-    for author, group in combined.groupby("Authors"):
-        if author in duplicate_authors:
-            # Sort by date (newest first) and take the first (most recent)
-            most_recent = group.sort_values("Date", ascending=False).iloc[0:1]
-            filtered_rows.append(most_recent)
-        else:
-            # For non-duplicates, keep all entries
-            filtered_rows.append(group)
-
-    # Combine the filtered rows more efficiently
-    filtered_data = pd.concat(filtered_rows, ignore_index=True)
-
-    # Save the cleaned files with a more descriptive name
-    output_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_final.csv"
-    filtered_data.to_csv(output_path, index=False)
-
-    print(f"Processing complete. Final cleaned file saved to: {output_path}")
-    print(
-        f"Records before deduplication: {len(combined)}, after deduplication: {len(filtered_data)}"
+    df_newest.to_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results.csv",
     )
-    print("compare_authors function completed.")
 
 
 def extract_university() -> None:
@@ -321,7 +271,7 @@ def extract_university() -> None:
     print("Starting extract_university function...")
     try:
         combined = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results.csv",
             parse_dates=["Date"],
         )
     except FileNotFoundError as e:
@@ -355,8 +305,6 @@ def extract_university() -> None:
                 # Clean up any extra spaces and punctuation
                 university_name = university_name.strip()
                 combined.at[_index, "University_Name"] = university_name
-                print(f"{_index}, Original: {row}")
-                print(f"{_index}, Extracted: {university_name}")
                 print("---" * 30)
 
     combined.to_csv(
@@ -367,10 +315,13 @@ def extract_university() -> None:
 
 
 def extract_department() -> None:
+    """
+    Extract department names from affiliations and store them in a new column.
+    """
     print("Starting extract_department function...")
     try:
         combined = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
             parse_dates=["Date"],
         )
     except FileNotFoundError as e:
@@ -378,12 +329,11 @@ def extract_department() -> None:
         return
 
     for _index, row in enumerate(combined["Affiliations"]):
-        if pd.notna(row) and "University" in row:
+        if pd.notna(row) and any("University") in row:
             department = row.split("University")[0]
             result = department.split(",")[0]
             full_department = result
             combined.at[_index, "Department"] = full_department
-            print(_index, full_department)
 
         combined.to_csv(
             "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv"
@@ -393,10 +343,13 @@ def extract_department() -> None:
 
 
 def extract_countries() -> None:
+    """
+    Extract country names from affiliations and store them in a new column.
+    """
     print("Starting extract_countries function...")
     try:
         combined = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
             parse_dates=["Date"],
         )
     except FileNotFoundError as e:
@@ -417,45 +370,6 @@ def extract_countries() -> None:
         "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv"
     )
     print("Country extraction completed.")
-
-
-def filter_authors() -> None:
-    """Filtering authors based on the amount of mentions and date."""
-    print("Starting filter_authors function...")
-    try:
-        combined = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results_1_tests.csv",
-            parse_dates=["Date"],
-        )
-    except FileNotFoundError as e:
-        print(f"Error loading CSV file: {e}")
-        return
-
-    if "Date" in combined.columns and not pd.api.types.is_datetime64_any_dtype(
-        combined["Date"]
-    ):
-        combined["Date"] = pd.to_datetime(combined["Date"], errors="coerce")
-
-    if "amount_of_mentions" in combined.columns:
-        # Sort by Authors and then by amount_of_mentions (descending)
-        combined_sorted = combined.sort_values(
-            by=["Authors", "amount_of_mentions", "Date"], ascending=[True, False, False]
-        )
-
-        # Drop duplicates keeping the one with highest amount_of_mentions (first after sorting)
-        combined_deduped = combined_sorted.drop_duplicates(
-            subset=["Authors"], keep="first"
-        )
-
-        print(f"Original shape: {combined.shape}")
-        print(f"Shape after keeping highest mentions: {combined_deduped.shape}")
-
-        # Save the result
-        combined_deduped.to_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
-            index=False,
-        )
-    print("Filtered authors saved to all_results.csv.")
 
 
 def explode_csv(*csv_files):
@@ -494,9 +408,9 @@ def main():
 
     # Fix the file paths to match what was actually generated
     csv_file_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results_1_tests",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results_1_merged_tests",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_1_tests",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results",
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results",
     ]
 
     # Check if files exist before proceeding
@@ -510,17 +424,12 @@ def main():
 
     print("Calculating author mentions...")
     amount_of_mentions()
-
-    print("Comparing authors across sources...")
-    compare_authors()
     print("Extracting university names...")
     extract_university()
     print("Extracting departments...")
     extract_department()
     print("Extracting countries...")
     extract_countries()
-    print("Filtering authors based on mentions and date...")
-    filter_authors()
     print("Script execution completed successfully.")
 
 
