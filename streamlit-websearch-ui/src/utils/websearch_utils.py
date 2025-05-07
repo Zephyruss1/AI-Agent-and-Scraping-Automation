@@ -7,6 +7,7 @@ from typing import List, Literal, Optional
 
 import google.auth
 import gspread
+import numpy as np
 import pandas as pd
 import requests
 from browser_use import Agent, Browser, BrowserConfig
@@ -85,6 +86,71 @@ def load_spreadsheet(spreadsheet_link: str = None) -> pd.DataFrame:
     return (data, True) if data else (False, False)
 
 
+def write_to_spreadsheet() -> None:
+    """
+    Create a sample DataFrame with multiple rows for testing.
+    """
+    # Create a DataFrame with multiple test rows
+    df = pd.read_csv(
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
+    )
+
+    # Clean up the DataFrame to handle NaN, Infinity, etc.
+    # Replace NaN values with empty strings
+    df = df.fillna("")
+
+    # Replace infinite values with a large but valid number
+    df = df.replace([float("inf"), -float("inf")], "")
+
+    # Authenticate and open the spreadsheet
+    spreadsheet_link = "https://docs.google.com/spreadsheets/d/1PT9Yh7vxpDl1pt2LeG_82uuEa38cPXQ1wzLWw8gV5xQ/edit?gid=0#gid=0"
+
+    if not isinstance(spreadsheet_link, str):
+        raise ValueError("Spreadsheet link must be a string.")
+
+    # Extract spreadsheet ID
+    match = re.search(r"/d/([a-zA-Z0-9-_]+)", spreadsheet_link)
+    if not match:
+        raise ValueError("Invalid Google Sheets URL.")
+
+    client = gspread.authorize(
+        ServiceAccountCredentials.from_json_keyfile_name(
+            "/root/arxiv-and-scholar-scraping/aiagenttest-455613-a4d701f3b9ce.json",
+            [
+                "https://spreadsheets.google.com/feeds",
+                "https://www.googleapis.com/auth/drive",
+            ],
+        )
+    )
+
+    # Open the spreadsheet and select the second worksheet
+    sheet = client.open_by_url(spreadsheet_link)
+    sheet = sheet.get_worksheet(1)
+    sheet.clear()
+
+    # Convert DataFrame to values with special handling for non-JSON compatible values
+    header_row = df.columns.values.tolist()
+
+    data_rows = []
+    for _, row in df.iterrows():
+        row_values = []
+        for val in row:
+            if pd.isna(val) or pd.isnull(val):
+                row_values.append("")  # Replace NaN with empty string
+            elif isinstance(val, float) and (np.isnan(val) or np.isinf(val)):
+                row_values.append("")  # Replace infinity and NaN with empty string
+            else:
+                row_values.append(val)  # Keep other values as-is
+        data_rows.append(row_values)
+
+    # Update the sheet with the processed data
+    all_values = [header_row] + data_rows
+    sheet.update(all_values)
+
+    # Print success message
+    print("       ✅ [INFO] Data pushed to Google Sheets successfully!")
+
+
 def convert_excel_to_csv() -> pd.DataFrame:
     """Convert the excel file to a CSV file."""
     file_path = (
@@ -107,7 +173,7 @@ def convert_excel_to_csv() -> pd.DataFrame:
 
     # Set headers CSV file.
     csv_file = pd.read_csv(file_path.replace(".xlsx", ".csv"), header=None, dtype=str)
-    csv_file.columns = ["Authors", "Keyword", "University"]
+    csv_file.columns = ["Authors", "Keyword"]
     csv_file.to_csv(file_path.replace(".xlsx", ".csv"), index=False, header=True)
     return csv_file
 
