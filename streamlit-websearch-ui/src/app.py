@@ -8,6 +8,7 @@ from utils.websearch_utils import (
     perplexity_fill_empty_emails_with_search,
     perplexity_fill_empty_jobs_with_search,
     perplexity_general_search,
+    write_to_spreadsheet,
 )
 
 
@@ -45,7 +46,7 @@ def main():
 
     model_choice = st.sidebar.selectbox(
         "Select AI Model",
-        ["ChatGPT [Browser-Use]", "Perplexity"],
+        ["Perplexity", "ChatGPT [Browser-Use]"],
         help="Select the AI model you want to use for the search.",
     )
 
@@ -227,6 +228,7 @@ def main():
                     file_name="processed_file.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 )
+            write_to_spreadsheet()
         except FileNotFoundError:
             st.error(
                 "Processed file not found. Please ensure the process completed successfully."
