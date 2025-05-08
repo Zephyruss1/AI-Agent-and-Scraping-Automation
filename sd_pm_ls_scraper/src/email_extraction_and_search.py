@@ -82,6 +82,27 @@ class ExtractEmails:
             config = ChatGPTConfig()
         self.config = config
 
+    def extract_with_regex(self, pdf_texts: str) -> List[str]:
+        """Extract email addresses with Regex"""
+        print("\n📍 Step 8: [Regex] Extracting Email Addresses!")
+        if isinstance(pdf_texts, str):
+            pdf_texts = re.sub(r"\.{2,}", ".", pdf_texts)
+            pdf_texts = re.sub(r"@{2,}", "@", pdf_texts)
+
+            list_of_emails = re.findall(
+                r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", pdf_texts
+            )
+
+            if list_of_emails:
+                print(f"    ✅ [INFO] Email addresses listed: {list_of_emails}")
+                return list_of_emails
+            else:
+                print("    ❌ [INFO] No email addresses found.")
+                return ["None"]
+        else:
+            print("    ❌ [INFO] Invalid input. Expected a string.")
+            return ["None"]
+
     def chatgpt_response(self, pdf_texts: str) -> List[str]:
         """Extract email addresses from the text using ChatGPT."""
         print("\n📍 Step 8: [ChatGPT] Extracting Email Addresses!")
