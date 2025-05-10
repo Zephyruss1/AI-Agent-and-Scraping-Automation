@@ -404,7 +404,7 @@ class SpringerScraper:
 
         return new_articles_found
 
-    async def pagination(self, page, max_pages: int = None) -> None:
+    async def pagination(self, page, max_pages: int = None) -> bool:
         """
         Handle pagination for Springer search results with improved tracking.
 
@@ -413,6 +413,7 @@ class SpringerScraper:
             max_pages (int): Maximum number of pages to navigate.
         """
         current_page = 1
+        found_any_articles = False
         while True:
             # Check stopping conditions
             if (max_pages and current_page > max_pages) or (
@@ -439,6 +440,8 @@ class SpringerScraper:
 
                 # Try to gather articles
                 new_articles = await self.searching_and_gathering_papers(page)
+                if new_articles:
+                    found_any_articles = True
 
                 # If no new articles found, break pagination
                 if not new_articles:
@@ -455,6 +458,7 @@ class SpringerScraper:
         print(
             f"     [INFO] Pagination complete. Total pages: {current_page - 1}, Total unique articles: {len(self.articles)}"
         )
+        return found_any_articles
 
     async def extract_affiliations_and_full_names(
         self, page, csv_file_path: str
