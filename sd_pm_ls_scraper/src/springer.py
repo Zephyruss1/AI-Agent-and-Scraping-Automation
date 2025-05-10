@@ -435,9 +435,6 @@ class SpringerScraper:
                 await page.goto(paginated_url)
                 await page.wait_for_load_state("networkidle")
 
-                # Small delay to ensure page is loaded
-                await asyncio.sleep(2)
-
                 # Try to gather articles
                 new_articles = await self.searching_and_gathering_papers(page)
                 if new_articles:
