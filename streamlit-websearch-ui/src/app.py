@@ -160,7 +160,9 @@ def main():
         if model_choice == "ChatGPT [Browser-Use]":
             if purpose_choice == "Find Email Addresses":
                 chatgpt_fill_empty_emails_with_search(
-                    gpt_model, prompt=custom_prompt, start_index=start_index_selector
+                    gpt_model,
+                    prompt=custom_prompt,
+                    start_index=start_index_selector,
                 )
                 st.success("Searching for email addresses...")
             elif purpose_choice == "Find Job Titles":
@@ -231,7 +233,7 @@ def main():
             write_to_spreadsheet()
         except FileNotFoundError:
             st.error(
-                "Processed file not found. Please ensure the process completed successfully."
+                "Processed file not found. Please ensure the process completed successfully.",
             )
 
 

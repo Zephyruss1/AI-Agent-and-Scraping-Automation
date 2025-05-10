@@ -20,14 +20,16 @@ def select_model():
 
 def select_browser_model():
     browser_model = st.selectbox(
-        "Select the browser model:", options=["gpt-4o", "gpt-4o-mini"]
+        "Select the browser model:",
+        options=["gpt-4o", "gpt-4o-mini"],
     )
     return browser_model
 
 
 def select_perplexity_model():
     perplexity_model = st.selectbox(
-        "Select the Perplexity model:", options=["sonar-pro", "sonar-deep-research"]
+        "Select the Perplexity model:",
+        options=["sonar-pro", "sonar-deep-research"],
     )
     return perplexity_model
 
