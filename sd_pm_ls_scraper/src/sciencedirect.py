@@ -16,6 +16,8 @@ def make_request(
     start_year: str = None,
     end_year: str = None,
     max_papers: int = 18000,
+    API_KEY: str = API_KEY,
+    INSTTOKEN: str = INSTTOKEN,
 ) -> list:
     """
     Fetch ScienceDirect articles with a date range filter and specific article types.
@@ -70,18 +72,18 @@ def make_request(
                 data = response.json()
                 if "search-results" in data:
                     total_results = int(
-                        data["search-results"].get("opensearch:totalResults", 0)
+                        data["search-results"].get("opensearch:totalResults", 0),
                     )
                     print(f"Total available results: {total_results}")
                     if "entry" in data["search-results"]:
                         entries = data["search-results"]["entry"]
                         results.extend(entries)
                         print(
-                            f"Retrieved {len(entries)} results in this batch. Total: {len(results)}"
+                            f"Retrieved {len(entries)} results in this batch. Total: {len(results)}",
                         )
                         if len(entries) < count and len(results) < total_results:
                             print(
-                                "Received fewer results than requested, but more may be available."
+                                "Received fewer results than requested, but more may be available.",
                             )
                         elif len(entries) == 0 or len(results) >= total_results:
                             print("No more results available.")
@@ -113,7 +115,8 @@ def make_request(
 def save_csv(results: list, _keyword: str) -> None:
     if results:
         os.makedirs(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output", exist_ok=True
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output",
+            exist_ok=True,
         )
 
         headers = [
@@ -175,11 +178,11 @@ def save_csv(results: list, _keyword: str) -> None:
                         paper_link,
                         open_access,
                         _keyword,
-                    ]
+                    ],
                 )
 
         print(
-            f"✅ Successfully wrote {len(results)} results to output/sciencedirect_results.csv"
+            f"✅ Successfully wrote {len(results)} results to output/sciencedirect_results.csv",
         )
     else:
         print("⚠ No results to write to CSV.")
@@ -196,6 +199,12 @@ if __name__ == "__main__":
     end_date = "2025"
     max_papers = 250
 
-    results = make_request(search_term, start_date, end_date)
+    results = make_request(
+        search_term,
+        start_date,
+        end_date,
+        API_KEY=API_KEY,
+        INSTTOKEN=INSTTOKEN,
+    )
     print(f"Total articles retrieved: {len(results)}")
     save_csv(results, _keyword=search_term)
