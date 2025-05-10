@@ -68,7 +68,10 @@ def fetch_pubmed_details_batch(id_list, batch_size=200):
 
         try:
             handle = Entrez.efetch(
-                db="pubmed", id=batch, rettype="medline", retmode="text"
+                db="pubmed",
+                id=batch,
+                rettype="medline",
+                retmode="text",
             )
             records = list(Medline.parse(handle))
             handle.close()
@@ -80,7 +83,10 @@ def fetch_pubmed_details_batch(id_list, batch_size=200):
             time.sleep(5)
             try:
                 handle = Entrez.efetch(
-                    db="pubmed", id=batch, rettype="medline", retmode="text"
+                    db="pubmed",
+                    id=batch,
+                    rettype="medline",
+                    retmode="text",
                 )
                 records = list(Medline.parse(handle))
                 handle.close()
@@ -114,7 +120,7 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
                 "PMC Full Text URL",
                 "DOI",
                 "Keyword",
-            ]
+            ],
         )
 
         # Process each record and write to CSV
@@ -163,7 +169,7 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
                         pmc_url,
                         doi,
                         _keyword,
-                    ]
+                    ],
                 )
 
                 record_count += 1
@@ -179,9 +185,9 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
 
 if __name__ == "__main__":
     # Example usage: search_pubmed_with_date_ranges("bacterial growth AND antibiotics", [("2010/01/01", "2020/12/31")])
-    search_term = "bacteria AND Plant pathology AND Insecticides"
+    search_term = '("biological screening" OR "high-throughput screening") AND (microbial OR bacteria OR fungi) AND ("automated imaging" OR "image-based screening")'
     date_ranges = [
-        ("1900/01/01", "2025/12/31"),
+        ("2012/01/01", "2025/12/31"),
         ("2026/01/01", "2050/12/31"),
     ]
     max_results = 1000
