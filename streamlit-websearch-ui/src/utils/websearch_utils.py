@@ -60,7 +60,8 @@ def load_spreadsheet(spreadsheet_link: str = None) -> pd.DataFrame:
     # Download as .xlsx
     # Refresh token using google-auth
     creds2 = service_account.Credentials.from_service_account_file(
-        json_keyfile, scopes=["https://www.googleapis.com/auth/drive.readonly"]
+        json_keyfile,
+        scopes=["https://www.googleapis.com/auth/drive.readonly"],
     )
     auth_req = google.auth.transport.requests.Request()
     creds2.refresh(auth_req)
@@ -92,7 +93,7 @@ def write_to_spreadsheet() -> None:
     """
     # Create a DataFrame with multiple test rows
     df = pd.read_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     )
 
     # Clean up the DataFrame to handle NaN, Infinity, etc.
@@ -120,7 +121,7 @@ def write_to_spreadsheet() -> None:
                 "https://spreadsheets.google.com/feeds",
                 "https://www.googleapis.com/auth/drive",
             ],
-        )
+        ),
     )
 
     # Open the spreadsheet and select the second worksheet
@@ -162,10 +163,12 @@ def convert_excel_to_csv() -> pd.DataFrame:
     xlsx_file = pd.read_excel(file_path)
     try:
         csv_file = xlsx_file.to_csv(
-            file_path.replace(".xlsx", ".csv"), index=False, header=False
+            file_path.replace(".xlsx", ".csv"),
+            index=False,
+            header=False,
         )
         print(
-            f"    ✅ [INFO] Excel file converted to CSV: {file_path.replace('.xlsx', '.csv')}"
+            f"    ✅ [INFO] Excel file converted to CSV: {file_path.replace('.xlsx', '.csv')}",
         )
     except Exception as err:
         print("    ❌ [INFO] Failed to convert Excel file to CSV.")
@@ -197,7 +200,10 @@ class PerplexityConfig:
 
     url: str = "https://api.perplexity.ai/chat/completions"
     model: Literal[
-        "sonar-pro", "sonar-deep-research", "sonar-reasoning", "sonar-reasoning-pro"
+        "sonar-pro",
+        "sonar-deep-research",
+        "sonar-reasoning",
+        "sonar-reasoning-pro",
     ] = "sonar-pro"
     search_context_size: Literal["low", "medium", "high"] = "low"
     temperature: float = 0.2
@@ -262,7 +268,7 @@ class WebSearch:
             config=BrowserConfig(
                 headless=BrowserAndGPTConfig.headless,
                 disable_security=BrowserAndGPTConfig.disable_security,
-            )
+            ),
         )
 
         # This will search for text within quotes
@@ -313,7 +319,9 @@ class WebSearch:
         }
 
         response = requests.post(
-            self.config.url, headers=self.config.get_headers(), json=payload
+            self.config.url,
+            headers=self.config.get_headers(),
+            json=payload,
         )
         print(f"system_prompt: {payload.get('messages')[1].get('content')}")
         if response.status_code == 200:
@@ -339,7 +347,9 @@ class WebSearch:
                 print(f"Unexcepted error: {err}")
 
     def perplexity_search_for_email(
-        self, system_prompt: Optional[str] = None, prompt: Optional[str] = None
+        self,
+        system_prompt: Optional[str] = None,
+        prompt: Optional[str] = None,
     ) -> List[str]:
         """Search for email addresses for the provided author name."""
         print("\n📍 Step 8: [Perplexity] Extracting Email Addresses!")
@@ -382,7 +392,9 @@ class WebSearch:
         }
 
         response = requests.post(
-            self.config.url, headers=self.config.get_headers(), json=payload
+            self.config.url,
+            headers=self.config.get_headers(),
+            json=payload,
         )
         print(f"system_prompt: {payload.get('messages')[1].get('content')}")
         if response.status_code == 200:
@@ -427,7 +439,8 @@ class WebSearch:
                             if "email_adress" in raw_content:
                                 # Try to extract after the "email_adress": or "email_adress":
                                 email_match = re.search(
-                                    r'"email_adress"\s*:\s*"([^"]+)"', raw_content
+                                    r'"email_adress"\s*:\s*"([^"]+)"',
+                                    raw_content,
                                 )
                                 if email_match:
                                     return [email_match.group(1)]
@@ -445,7 +458,9 @@ class WebSearch:
             return ["None"]
 
     def perplexity_search_for_job_title(
-        self, system_prompt: Optional[str] = None, prompt: Optional[str] = None
+        self,
+        system_prompt: Optional[str] = None,
+        prompt: Optional[str] = None,
     ) -> List[str]:
         """Search for job title for the provided author name."""
 
@@ -489,7 +504,9 @@ class WebSearch:
         }
 
         response = requests.post(
-            self.config.url, headers=self.config.get_headers(), json=payload
+            self.config.url,
+            headers=self.config.get_headers(),
+            json=payload,
         )
         print(f"system_prompt: {payload.get('messages')[1].get('content')}")
         if response.status_code == 200:
@@ -522,13 +539,14 @@ class WebSearch:
                         except json.JSONDecodeError:
                             # If JSON parsing fails, try to extract job title using regex
                             print(
-                                "JSON parsing failed, trying job title regex extraction"
+                                "JSON parsing failed, trying job title regex extraction",
                             )
 
                             # Look for structured format that might contain job title
                             if "job_title" in raw_content:
                                 job_match = re.search(
-                                    r'"job_title"\s*:\s*"([^"]+)"', raw_content
+                                    r'"job_title"\s*:\s*"([^"]+)"',
+                                    raw_content,
                                 )
                                 if job_match:
                                     return [job_match.group(1)]
@@ -640,7 +658,7 @@ class InsertResults:
                         new_result = f"{current_result}, {result}"
                         self.csv_file.at[_index, "search_results"] = new_result
                         print(
-                            f"     🔄 [INFO] Updating result: {current_result} -> {result}"
+                            f"     🔄 [INFO] Updating result: {current_result} -> {result}",
                         )
                     except Exception as err:
                         raise Exception(f"Error: {err}") from err
@@ -648,8 +666,8 @@ class InsertResults:
                     self.csv_file.at[_index, "search_results"] = result
                     [
                         print(
-                            f"     🔄 [INFO] Adding result: {result} to index: {_index}"
-                        )
+                            f"     🔄 [INFO] Adding result: {result} to index: {_index}",
+                        ),
                     ]
             except Exception as err:
                 raise Exception(f"Error: {err}") from err
@@ -702,7 +720,9 @@ class FindSimilarity:
                 doc2 = str(author_name)
 
                 vectorizer = TfidfVectorizer(
-                    analyzer="char", ngram_range=(1, 2), lowercase=True
+                    analyzer="char",
+                    ngram_range=(1, 2),
+                    lowercase=True,
                 )
                 tfidf_matrix = vectorizer.fit_transform([doc1, doc2])
 
@@ -711,7 +731,7 @@ class FindSimilarity:
                 try:
                     if cosine_sim[0][0] > 0.58:
                         print(
-                            f"    ✅ [INFO] Match Found: {author_name} | {cosine_sim[0][0]}"
+                            f"    ✅ [INFO] Match Found: {author_name} | {cosine_sim[0][0]}",
                         )
                         current_email = row.get("email", "")
 
@@ -719,7 +739,7 @@ class FindSimilarity:
                             if email in current_email:
                                 match_found = True
                                 print(
-                                    "     ⚠️ [INFO] Email already exists in the CSV file. Continuing to next email."
+                                    "     ⚠️ [INFO] Email already exists in the CSV file. Continuing to next email.",
                                 )
                                 break
                             else:
@@ -727,7 +747,7 @@ class FindSimilarity:
                                     new_email = f"{current_email}, {email}"
                                     self.csv_file.at[_index, "email"] = new_email
                                     print(
-                                        f"     🔄 [INFO] Updating email: {current_email} -> {email}"
+                                        f"     🔄 [INFO] Updating email: {current_email} -> {email}",
                                     )
                                 except Exception as err:
                                     raise Exception(f"Error: {err}") from err
@@ -735,8 +755,8 @@ class FindSimilarity:
                             self.csv_file.at[_index, "email"] = email
                             [
                                 print(
-                                    f"     🔄 [INFO] Adding email: {email} to {author_name}"
-                                )
+                                    f"     🔄 [INFO] Adding email: {email} to {author_name}",
+                                ),
                             ]
                         match_found = True
                 except Exception as err:
@@ -746,7 +766,8 @@ class FindSimilarity:
                 print(f"    ❌ [INFO] No match found for email: {email}")
                 new_row = {"Authors": "", "email": email}
                 self.csv_file = pd.concat(
-                    [self.csv_file, pd.DataFrame([new_row])], ignore_index=True
+                    [self.csv_file, pd.DataFrame([new_row])],
+                    ignore_index=True,
                 )
             print("---" * 30)
         # Save the updated DataFrame to the same path
@@ -754,7 +775,9 @@ class FindSimilarity:
         print(f"✅ [INFO] Results saved to: '{self.csv_file_path}'")
 
     def find_job_title_and_save(
-        self, list_of_jobs: List[str], current_index: int
+        self,
+        list_of_jobs: List[str],
+        current_index: int,
     ) -> None:
         """Find the job title and author name using Cosine Similarity, and update only the current author."""
         print("\n📍 Step 9: Finding Similarity and Saving to Csv File!")
@@ -777,7 +800,7 @@ class FindSimilarity:
             if pd.notna(current_job_title) and current_job_title:
                 if job_title in current_job_title:
                     print(
-                        "     ⚠️ [INFO] Job title already exists for the current author."
+                        "     ⚠️ [INFO] Job title already exists for the current author.",
                     )
                     continue
                 else:
@@ -785,7 +808,7 @@ class FindSimilarity:
                     new_job_title = f"{current_job_title}, {job_title}"
                     self.csv_file.at[current_index, "job_title"] = new_job_title
                     print(
-                        f"     🔄 [INFO] Updating job title: {current_job_title} -> {new_job_title}"
+                        f"     🔄 [INFO] Updating job title: {current_job_title} -> {new_job_title}",
                     )
             else:
                 # If no job title exists, simply assign it
@@ -806,7 +829,7 @@ def chatgpt_fill_empty_emails_with_search(
     start_index: Optional[int] = None,
 ):
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     ]
 
     for csv_path in csv_paths:
@@ -839,7 +862,8 @@ def chatgpt_fill_empty_emails_with_search(
             # Step 6: Find similarity between the author names and emails
             df_csv = _load_csv(file_name=csv_path)
             similarity_finder = FindSimilarity(
-                csv_file=df_csv, csv_file_path=f"{csv_path}"
+                csv_file=df_csv,
+                csv_file_path=f"{csv_path}",
             )
             similarity_finder.find_email_author_and_save(list_of_emails)
             print("-----" * 15)
@@ -852,7 +876,7 @@ def chatgpt_fill_empty_jobs_with_search(
     start_index: Optional[int] = None,
 ):
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     ]
 
     for csv_path in csv_paths:
@@ -897,7 +921,7 @@ def perplexity_general_search(
     start_index: Optional[int] = None,
 ):
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     ]
 
     for csv_path in csv_paths:
@@ -924,7 +948,8 @@ def perplexity_general_search(
                 ),
             )
             list_of_results = web_search.perplexity_general_search(
-                system_prompt=system_prompt, prompt=prompt
+                system_prompt=system_prompt,
+                prompt=prompt,
             )
 
             # Step 6: Find similarity between the author names and emails
@@ -943,7 +968,7 @@ def perplexity_fill_empty_emails_with_search(
     start_index: Optional[int] = None,
 ):
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     ]
 
     for csv_path in csv_paths:
@@ -976,13 +1001,15 @@ def perplexity_fill_empty_emails_with_search(
                 ),
             )
             list_of_emails = web_search.perplexity_search_for_email(
-                system_prompt=system_prompt, prompt=prompt
+                system_prompt=system_prompt,
+                prompt=prompt,
             )
 
             # Step 6: Find similarity between the author names and emails
             df_csv = _load_csv(file_name=csv_path)
             similarity_finder = FindSimilarity(
-                csv_file=df_csv, csv_file_path=f"{csv_path}"
+                csv_file=df_csv,
+                csv_file_path=f"{csv_path}",
             )
             similarity_finder.find_email_author_and_save(list_of_emails)
             print("-----" * 15)
@@ -997,7 +1024,7 @@ def perplexity_fill_empty_jobs_with_search(
     start_index: Optional[int] = None,
 ):
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     ]
 
     for csv_path in csv_paths:
@@ -1030,7 +1057,8 @@ def perplexity_fill_empty_jobs_with_search(
             ),
         )
         list_of_jobs = web_search.perplexity_search_for_job_title(
-            system_prompt=system_prompt, prompt=prompt
+            system_prompt=system_prompt,
+            prompt=prompt,
         )
 
         # Step 8: Find similarity between the author names and emails
