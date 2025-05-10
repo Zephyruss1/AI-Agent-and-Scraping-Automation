@@ -125,7 +125,7 @@ class WebSearch:
         self.config = config
         self.author_name = name
         wb, ws = _load_excel(
-            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx"
+            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
         )
         self.headers = [
             str(cell.value).strip().lower() if cell.value else None for cell in ws[1]
@@ -161,7 +161,9 @@ class WebSearch:
         }
 
         response = requests.post(
-            self.config.url, headers=self.config.get_headers(), json=payload
+            self.config.url,
+            headers=self.config.get_headers(),
+            json=payload,
         )
 
         if response.status_code == 200:
@@ -191,7 +193,7 @@ class WebSearch:
             from langchain_openai import ChatOpenAI
         except ImportError as err:
             raise ImportError(
-                "Please install the required packages to run this function."
+                "Please install the required packages to run this function.",
             ) from err
 
         browser = Browser(config=BrowserConfig(headless=True, disable_security=True))
@@ -221,7 +223,7 @@ class FindSimilarity:
         """Find the email address and author name using Cosine Similarity."""
         print("\n📍 Step 9: Finding Similarity and Saving to Excel!")
         wb, ws = _load_excel(
-            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx"
+            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
         )
         headers = [
             str(cell.value).strip().lower() if cell.value else None for cell in ws[1]
@@ -246,7 +248,8 @@ class FindSimilarity:
             match_found = False
 
             for row_index, row in enumerate(
-                ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True), start=2
+                ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True),
+                start=2,
             ):
                 author_name = row[0]
                 if not author_name:
@@ -255,7 +258,9 @@ class FindSimilarity:
                 doc2 = str(author_name)
 
                 vectorizer = TfidfVectorizer(
-                    analyzer="char", ngram_range=(1, 2), lowercase=True
+                    analyzer="char",
+                    ngram_range=(1, 2),
+                    lowercase=True,
                 )
                 tfidf_matrix = vectorizer.fit_transform([doc1, doc2])
 
@@ -276,7 +281,7 @@ class FindSimilarity:
                 ws.cell(row=last_row, column=email_column, value=email)
 
         return wb.save(
-            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx"
+            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
         )
 
 
@@ -301,7 +306,7 @@ def extract():
 
 def fill_empty_emails_with_search():
     wb, ws = _load_excel(
-        "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx"
+        "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
     )
 
     headers = [cell.value for cell in ws[1]]
@@ -314,7 +319,7 @@ def fill_empty_emails_with_search():
         email_row = row[6] if len(row) > 6 else None
         if email_row is not None:
             print(
-                f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping..."
+                f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping...",
             )
             continue
 
@@ -328,7 +333,7 @@ def fill_empty_emails_with_search():
         print("-----" * 15)
 
     ask_msg = input(
-        "Do you want to fill empty emails row again with browser-use? [y/n]: "
+        "Do you want to fill empty emails row again with browser-use? [y/n]: ",
     )
     if ask_msg.lower() == "y":
         # WebSearch using Browser-Use
@@ -337,7 +342,7 @@ def fill_empty_emails_with_search():
             email_row = row[6] if len(row) > 6 else None
             if email_row is not None:
                 print(
-                    f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping..."
+                    f"     [INFO] Email already exists for this [Author: {author_name}]. Skipping...",
                 )
                 continue
 

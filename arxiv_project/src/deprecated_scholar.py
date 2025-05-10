@@ -27,7 +27,7 @@ class SemanticScholarScraper:
         try:
             # Wait for and check if the dropdown control div is visible
             dropdown_control = page.locator(
-                "div.dropdown-filters__sort-control.search-sort.flex-row-vcenter"
+                "div.dropdown-filters__sort-control.search-sort.flex-row-vcenter",
             )
 
             try:
@@ -42,7 +42,7 @@ class SemanticScholarScraper:
 
                     # Wait for select element to be visible after clicking
                     select_element = page.locator(
-                        'xpath=//*[@id="app"]/div[1]/div[2]/div/main/div[2]/div/div/div/div[1]/div/div/div[2]/div[1]/select'
+                        'xpath=//*[@id="app"]/div[1]/div[2]/div/main/div[2]/div/div/div/div[1]/div/div/div[2]/div[1]/select',
                     )
                     await select_element.wait_for(state="visible", timeout=5000)
                     return True
@@ -62,7 +62,7 @@ class SemanticScholarScraper:
         try:
             # Use select_option on the select element
             select_element = page.locator(
-                'xpath=//*[@id="app"]/div[1]/div[2]/div/main/div[2]/div/div/div/div[1]/div/div/div[2]/div[1]/select'
+                'xpath=//*[@id="app"]/div[1]/div[2]/div/main/div[2]/div/div/div/div[1]/div/div/div[2]/div[1]/select',
             )
             await select_element.select_option("pub-date")
 
@@ -128,7 +128,7 @@ class SemanticScholarScraper:
                                 return True
 
                     print(
-                        f"Attempt {attempt + 1}: Sorting verification failed, retrying..."
+                        f"Attempt {attempt + 1}: Sorting verification failed, retrying...",
                     )
                     await asyncio.sleep(2)
 
@@ -232,7 +232,7 @@ class SemanticScholarScraper:
                         # Process paper links
                         if not await self.process_paper_links(page):
                             print(
-                                f"No papers found or downloaded for author {author_id}"
+                                f"No papers found or downloaded for author {author_id}",
                             )
 
                     except Exception as e:
