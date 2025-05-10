@@ -58,7 +58,8 @@ def load_spreadsheet(spreadsheet_link: str = None) -> pd.DataFrame:
     # Download as .xlsx
     # Refresh token using google-auth
     creds2 = service_account.Credentials.from_service_account_file(
-        json_keyfile, scopes=["https://www.googleapis.com/auth/drive.readonly"]
+        json_keyfile,
+        scopes=["https://www.googleapis.com/auth/drive.readonly"],
     )
     auth_req = google.auth.transport.requests.Request()
     creds2.refresh(auth_req)
@@ -95,10 +96,12 @@ def convert_excel_to_csv() -> pd.DataFrame:
     xlsx_file = pd.read_excel(file_path)
     try:
         csv_file = xlsx_file.to_csv(
-            file_path.replace(".xlsx", ".csv"), index=False, header=False
+            file_path.replace(".xlsx", ".csv"),
+            index=False,
+            header=False,
         )
         print(
-            f"    ✅ [INFO] Excel file converted to CSV: {file_path.replace('.xlsx', '.csv')}"
+            f"    ✅ [INFO] Excel file converted to CSV: {file_path.replace('.xlsx', '.csv')}",
         )
     except Exception as err:
         print("    ❌ [INFO] Failed to convert Excel file to CSV.")
@@ -175,7 +178,7 @@ class WebSearch:
             config=BrowserConfig(
                 headless=BrowserConfig.headless,
                 disable_security=BrowserConfig.disable_security,
-            )
+            ),
         )
         import re
 
@@ -213,7 +216,9 @@ class WebSearch:
         }
 
         response = requests.post(
-            self.config.url, headers=self.config.get_headers(), json=payload
+            self.config.url,
+            headers=self.config.get_headers(),
+            json=payload,
         )
         print(f"Prompt: {payload.get('messages')[1].get('content')}")
         if response.status_code == 200:
@@ -267,7 +272,9 @@ class WebSearch:
         }
 
         response = requests.post(
-            self.config.url, headers=self.config.get_headers(), json=payload
+            self.config.url,
+            headers=self.config.get_headers(),
+            json=payload,
         )
         print(f"Prompt: {payload.get('messages')[1].get('content')}")
         if response.status_code == 200:
@@ -386,7 +393,9 @@ class FindSimilarity:
                 doc2 = str(author_name)
 
                 vectorizer = TfidfVectorizer(
-                    analyzer="char", ngram_range=(1, 2), lowercase=True
+                    analyzer="char",
+                    ngram_range=(1, 2),
+                    lowercase=True,
                 )
                 tfidf_matrix = vectorizer.fit_transform([doc1, doc2])
 
@@ -395,14 +404,14 @@ class FindSimilarity:
                 try:
                     if cosine_sim[0][0] > 0.6:
                         print(
-                            f"    ✅ [INFO] Match Found: {author_name} | {cosine_sim[0][0]}"
+                            f"    ✅ [INFO] Match Found: {author_name} | {cosine_sim[0][0]}",
                         )
                         current_email = row.get("email", "")
 
                         if pd.notna(current_email) and current_email:
                             if email in current_email:
                                 print(
-                                    "     ⚠️ [INFO] Email already exists in the CSV file. Continuing to next email."
+                                    "     ⚠️ [INFO] Email already exists in the CSV file. Continuing to next email.",
                                 )
                                 break
                             else:
@@ -410,7 +419,7 @@ class FindSimilarity:
                                     new_email = f"{current_email}, {email}"
                                     self.csv_file.at[_index, "email"] = new_email
                                     print(
-                                        f"     🔄 [INFO] Updating email: {current_email} -> {email}"
+                                        f"     🔄 [INFO] Updating email: {current_email} -> {email}",
                                     )
                                 except Exception as err:
                                     raise Exception(f"Error: {err}") from err
@@ -418,8 +427,8 @@ class FindSimilarity:
                             self.csv_file.at[_index, "email"] = email
                             [
                                 print(
-                                    f"     🔄 [INFO] Adding email: {email} to {author_name}"
-                                )
+                                    f"     🔄 [INFO] Adding email: {email} to {author_name}",
+                                ),
                             ]
                         match_found = True
                 except Exception as err:
@@ -429,7 +438,8 @@ class FindSimilarity:
                 print(f"    ❌ [INFO] No match found for email: {email}")
                 new_row = {"Authors": "", "email": email}
                 self.csv_file = pd.concat(
-                    [self.csv_file, pd.DataFrame([new_row])], ignore_index=True
+                    [self.csv_file, pd.DataFrame([new_row])],
+                    ignore_index=True,
                 )
             print("---" * 30)
         # Save the updated DataFrame to the same path
@@ -437,7 +447,9 @@ class FindSimilarity:
         print(f"✅ [INFO] Results saved to: '{self.csv_file_path}'")
 
     def find_job_title_and_save(
-        self, list_of_jobs: List[str], current_index: int
+        self,
+        list_of_jobs: List[str],
+        current_index: int,
     ) -> None:
         """Find the job title and author name using Cosine Similarity, and update only the current author."""
         print("\n📍 Step 9: Finding Similarity and Saving to Csv File!")
@@ -460,7 +472,7 @@ class FindSimilarity:
             if pd.notna(current_job_title) and current_job_title:
                 if job_title in current_job_title:
                     print(
-                        "     ⚠️ [INFO] Job title already exists for the current author."
+                        "     ⚠️ [INFO] Job title already exists for the current author.",
                     )
                     continue
                 else:
@@ -468,7 +480,7 @@ class FindSimilarity:
                     new_job_title = f"{current_job_title}, {job_title}"
                     self.csv_file.at[current_index, "job_title"] = new_job_title
                     print(
-                        f"     🔄 [INFO] Updating job title: {current_job_title} -> {new_job_title}"
+                        f"     🔄 [INFO] Updating job title: {current_job_title} -> {new_job_title}",
                     )
             else:
                 # If no job title exists, simply assign it
@@ -506,14 +518,17 @@ def fill_empty_emails_with_search():
             print(f"Processing author: {author_name}")
 
             web_search = WebSearch(
-                name=str(author_name), csv_file=_csv, _keyword=keyword
+                name=str(author_name),
+                csv_file=_csv,
+                _keyword=keyword,
             )
             list_of_emails = web_search.ai_search()
 
             # Step 6: Find similarity between the author names and emails
             df_csv = _load_csv(file_name=csv_path)
             similarity_finder = FindSimilarity(
-                csv_file=df_csv, csv_file_path=f"{csv_path}"
+                csv_file=df_csv,
+                csv_file_path=f"{csv_path}",
             )
             similarity_finder.find_email_author_and_save(list_of_emails)
             print("-----" * 15)
@@ -568,8 +583,8 @@ if __name__ == "__main__":
         str(
             "Enter the model you want to use (1 or 2):\n"
             "1. ChatGPT [Browser-Use]\n"
-            "2. Perplexity\n"
-        )
+            "2. Perplexity\n",
+        ),
     )
     print("📍 Step 4: AI Agent 🔧 :")
     print("---------------------------------------------------------------")
@@ -579,8 +594,8 @@ if __name__ == "__main__":
                 "Enter the model you want to use (1 or 2):\n"
                 "1. gpt-4o\n"
                 "2. gpt-4o-mini\n"
-                "->"
-            )
+                "->",
+            ),
         )
         if model_config_choice_gpt == "1":
             BrowserConfig.model = "gpt-4o"
@@ -595,8 +610,8 @@ if __name__ == "__main__":
             str(
                 "Enter the model you want to use (1 or 2):\n"
                 "1. sonar-pro\n"
-                "2. sonar-deep-research\n"
-            )
+                "2. sonar-deep-research\n",
+            ),
         )
         if model_config_choice_perplexity == "1":
             PerplexityConfig.model = "sonar-pro"
@@ -613,8 +628,8 @@ if __name__ == "__main__":
         str(
             "Enter the purpose of your search (1 or 2):\n"
             "1. Find email addresses\n"
-            "2. Find job titles\n"
-        )
+            "2. Find job titles\n",
+        ),
     )
     print("---------------------------------------------------------------")
     if purpose_choice == "1":
