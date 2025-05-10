@@ -31,7 +31,7 @@ def _save_excel(author_list: List[Dict], keyword: List[str]) -> None:
             "LastPaperLink",
             "AmountOfMentions",
             "Keyword",
-        ]
+        ],
     )
 
     for author in author_list:
@@ -45,7 +45,7 @@ def _save_excel(author_list: List[Dict], keyword: List[str]) -> None:
                 ", ".join(author.get("Keyword", ["null"]))
                 if isinstance(author.get("Keyword", list), list)
                 else author.get("Keyword", "null"),
-            ]
+            ],
         )
 
     try:
@@ -75,7 +75,7 @@ class ArxivScraper:
     async def pagination(self) -> bool:
         print("     [INFO] Checking for next page...")
         next_page_locator = self.page.locator(
-            'xpath=//*[@id="main-container"]/div[2]/nav[1]/a[2]'
+            'xpath=//*[@id="main-container"]/div[2]/nav[1]/a[2]',
         )
         try:
             await next_page_locator.wait_for(state="visible", timeout=10000)
@@ -117,13 +117,13 @@ class ArxivScraper:
             search_terms = []
             if self.keyword:
                 search_terms.extend(
-                    self.keyword if isinstance(self.keyword, list) else [self.keyword]
+                    self.keyword if isinstance(self.keyword, list) else [self.keyword],
                 )
             if self.OR:
                 search_terms.extend(self.OR if isinstance(self.OR, list) else [self.OR])
             if self.NOT:
                 search_terms.extend(
-                    self.NOT if isinstance(self.NOT, list) else [self.NOT]
+                    self.NOT if isinstance(self.NOT, list) else [self.NOT],
                 )
 
             # Fill the first search box (already present)
@@ -141,7 +141,7 @@ class ArxivScraper:
                 await asyncio.sleep(1)
 
                 dropdown_xpath = self.page.locator(
-                    f'xpath=//*[@id="terms-{i}-operator"]'
+                    f'xpath=//*[@id="terms-{i}-operator"]',
                 )
                 if term in self.OR:
                     await dropdown_xpath.select_option("OR")
@@ -185,13 +185,14 @@ class ArxivScraper:
     #         return False
 
     async def get_paper_ids(
-        self, max_pages_DEBUG_MODE: Optional[int] = None
+        self,
+        max_pages_DEBUG_MODE: Optional[int] = None,
     ) -> List[Dict]:
         print("\n📍 Step 2: Scraping paper links!")
         page_count = 0
         if max_pages_DEBUG_MODE:
             print(
-                f"     ⚠️ [INFO] Debug mode enabled. Scraping only {max_pages_DEBUG_MODE} pages."
+                f"     ⚠️ [INFO] Debug mode enabled. Scraping only {max_pages_DEBUG_MODE} pages.",
             )
 
         while True:
@@ -201,7 +202,7 @@ class ArxivScraper:
 
             try:
                 paper_entries = self.page.locator(
-                    'xpath=//*[@id="main-container"]/div[2]/ol/li'
+                    'xpath=//*[@id="main-container"]/div[2]/ol/li',
                 )
             except Exception as e:
                 print(f"     ❌ [ERROR] Waiting for paper entries failed: {e}")
@@ -215,10 +216,10 @@ class ArxivScraper:
             for paper in papers:
                 try:
                     paper_link = await paper.locator(
-                        'xpath=//p[@class="list-title is-inline-block"]/a'
+                        'xpath=//p[@class="list-title is-inline-block"]/a',
                     ).get_attribute("href")
                     author_locator = paper.locator(
-                        'xpath=//p[contains(@class, "authors")]'
+                        'xpath=//p[contains(@class, "authors")]',
                     )
                     author_text = await author_locator.text_content()
 
@@ -237,7 +238,7 @@ class ArxivScraper:
 
                     if not paper_id:
                         print(
-                            "     ⚠️ [WARNING] Paper ID missing for one entry, skipping..."
+                            "     ⚠️ [WARNING] Paper ID missing for one entry, skipping...",
                         )
                         continue
 
@@ -252,7 +253,7 @@ class ArxivScraper:
                                     "LastPaperLink": "",
                                     "AmountOfMentions": 0,
                                     "Keyword": self.keyword,
-                                }
+                                },
                             )
 
                 except Exception as e:
@@ -284,7 +285,7 @@ class ArxivScraper:
 
                         if "authors" not in data:
                             print(
-                                f"    [WARNING] No authors found for paper {paper['PaperID']}"
+                                f"    [WARNING] No authors found for paper {paper['PaperID']}",
                             )
                             continue
 
@@ -296,19 +297,19 @@ class ArxivScraper:
                                 paper["AuthorID"] = author.get("authorId", "null")
 
                         print(
-                            f"     [INFO] Processed authors for paper {paper['PaperID']}"
+                            f"     [INFO] Processed authors for paper {paper['PaperID']}",
                         )
                 except aiohttp.ClientResponseError as e:
                     print(
-                        f"    ❌ [ERROR] HTTP error for paper {paper['PaperID']}: {e}"
+                        f"    ❌ [ERROR] HTTP error for paper {paper['PaperID']}: {e}",
                     )
                 except KeyError as e:
                     print(
-                        f"    ❌ [ERROR] Missing key in response for paper {paper['PaperID']}: {e}"
+                        f"    ❌ [ERROR] Missing key in response for paper {paper['PaperID']}: {e}",
                     )
                 except Exception as e:
                     print(
-                        f"    ❌ [ERROR] An error occurred for paper {paper['PaperID']}: {e}"
+                        f"    ❌ [ERROR] An error occurred for paper {paper['PaperID']}: {e}",
                     )
                 await asyncio.sleep(1)
 
@@ -330,7 +331,7 @@ class ArxivScraper:
                 author_id = row_info.get("AuthorID")
                 if author_id == "null":
                     print(
-                        f"    [INFO] No valid author name for {row_info['Author']}. Skipping."
+                        f"    [INFO] No valid author name for {row_info['Author']}. Skipping.",
                     )
                     continue
 
@@ -347,29 +348,29 @@ class ArxivScraper:
                         if "data" in data and data["data"]:
                             amount_of_mentions = data["data"]  # List of papers
                             print(
-                                f"    📄 {row_info['Author']} -> {len(amount_of_mentions)} papers found."
+                                f"    📄 {row_info['Author']} -> {len(amount_of_mentions)} papers found.",
                             )
 
                             # Update the amount of mentions for the author
                             row_info["AmountOfMentions"] = len(amount_of_mentions)
                         else:
                             print(
-                                f"    ⚠️ [WARNING] No papers found for author {row_info['Author']}"
+                                f"    ⚠️ [WARNING] No papers found for author {row_info['Author']}",
                             )
 
                         await asyncio.sleep(2)  # Sleep to prevent hitting rate limits
 
                 except aiohttp.ClientResponseError as e:
                     print(
-                        f"    ❌ [ERROR] HTTP error for author {row_info['Author']}: {e}"
+                        f"    ❌ [ERROR] HTTP error for author {row_info['Author']}: {e}",
                     )
                 except KeyError as e:
                     print(
-                        f"    ❌ [ERROR] Missing key in response for author {row_info['Author']}: {e}"
+                        f"    ❌ [ERROR] Missing key in response for author {row_info['Author']}: {e}",
                     )
                 except Exception as e:
                     print(
-                        f"    ❌ [ERROR] An error occurred for author {row_info['Author']}: {e}"
+                        f"    ❌ [ERROR] An error occurred for author {row_info['Author']}: {e}",
                     )
 
         print("    ✅ [INFO] Related papers scraped successfully!")
@@ -390,7 +391,7 @@ class ArxivScraper:
             try:
                 # Enter the author's name in the search box
                 search_box = self.page.locator(
-                    "xpath=/html/body/header/div[2]/div[2]/form/div/div[1]/input"
+                    "xpath=/html/body/header/div[2]/div[2]/form/div/div[1]/input",
                 )
                 await search_box.fill(author)
                 await search_box.press("Enter")
@@ -398,7 +399,7 @@ class ArxivScraper:
 
                 # Locate the latest paper
                 paper_entries = self.page.locator(
-                    'xpath=//*[@id="main-container"]/div[2]/ol/li'
+                    'xpath=//*[@id="main-container"]/div[2]/ol/li',
                 )
                 papers = await paper_entries.all()
                 if not papers:
@@ -419,12 +420,12 @@ class ArxivScraper:
                         print(f"     ⚠️ [WARNING] No paper link found for {author}")
                 except Exception as e:
                     print(
-                        f"     ❌ [ERROR] Failed to process the first paper entry for {author}: {e}"
+                        f"     ❌ [ERROR] Failed to process the first paper entry for {author}: {e}",
                     )
 
             except Exception as e:
                 print(
-                    f"     ❌ [ERROR] An error occurred while processing {author}: {e}"
+                    f"     ❌ [ERROR] An error occurred while processing {author}: {e}",
                 )
 
         print("    ✅ [INFO] Last paper links scraped successfully!")
@@ -480,12 +481,12 @@ class DownloadPDF:
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
                 print(
-                    f"    ❌ [ERROR] {pdf_url}: PDF can't be downloaded. Error: {result.stderr}"
+                    f"    ❌ [ERROR] {pdf_url}: PDF can't be downloaded. Error: {result.stderr}",
                 )
                 return False
 
             print(
-                f"    ✅ [INFO] {pdf_url}: PDF successfully downloaded -> {save_path}"
+                f"    ✅ [INFO] {pdf_url}: PDF successfully downloaded -> {save_path}",
             )
             return True
 
@@ -497,7 +498,7 @@ class DownloadPDF:
         """Start downloading PDFs with rate limiting consideration."""
         print("\n📍 Step 6: Downloading PDFs!")
         ws = await _load_excel(
-            filename="/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data.xlsx"
+            filename="/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data.xlsx",
         )
 
         if not ws:
@@ -571,7 +572,7 @@ async def async_main():
 
         # Step 7: Download PDFs
         download_pdf = DownloadPDF(
-            "/root/arxiv-and-scholar-scraping/arxiv_project/output"
+            "/root/arxiv-and-scholar-scraping/arxiv_project/output",
         )
         await download_pdf.start_download()
 

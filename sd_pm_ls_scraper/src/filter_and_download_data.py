@@ -25,7 +25,8 @@ os.makedirs(
 BASE_DIR = "/root/arxiv-and-scholar-scraping"
 
 PDF_DIR_SCIENCEDIRECT = os.path.join(
-    BASE_DIR, "sd_pm_ls_scraper/output/pdfs/sciencedirect"
+    BASE_DIR,
+    "sd_pm_ls_scraper/output/pdfs/sciencedirect",
 )
 PDF_DIR_PUBMED = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pdfs/pubmed")
 PDF_DIR_SPRINGER = os.path.join(BASE_DIR, "sd_pm_ls_scraper/output/pdfs/springer")
@@ -37,7 +38,8 @@ INSTTOKEN = os.getenv("ELSEVIER_INSTTOKEN")
 # Try to load each CSV file individually
 try:
     sciencedirect_path = os.path.join(
-        BASE_DIR, "sd_pm_ls_scraper/output/sciencedirect_results.csv"
+        BASE_DIR,
+        "sd_pm_ls_scraper/output/sciencedirect_results.csv",
     )
     sciencedirect_csv = pd.read_csv(sciencedirect_path)
     print("ScienceDirect data loaded successfully.")
@@ -53,7 +55,8 @@ except Exception as e:
 
 try:
     springer_path = os.path.join(
-        BASE_DIR, "sd_pm_ls_scraper/output/springer_results.csv"
+        BASE_DIR,
+        "sd_pm_ls_scraper/output/springer_results.csv",
     )
     springer_csv = pd.read_csv(springer_path)
     print("SpringerLink data loaded successfully.")
@@ -114,11 +117,11 @@ def download_pdf() -> str:
         if "articles/" in pmc_url:
             file_name = pmc_url.split("articles/")[1].replace("/", "")
             print(
-                f"    [INFO]💭 Visiting paper link {_index + 1}/{len(pubmed_df)}: {pmc_url}"
+                f"    [INFO]💭 Visiting paper link {_index + 1}/{len(pubmed_df)}: {pmc_url}",
             )
             if "No PMC Full Text" not in pmc_url:
                 headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
                 }
                 response = requests.get(pmc_url, headers=headers, stream=True)
                 if response.status_code == 200:
@@ -161,7 +164,8 @@ def download_pdf() -> str:
             if response.status_code == 200:
                 if response.headers.get("Content-Type") == "application/pdf":
                     pdf_filename = os.path.join(
-                        PDF_DIR_SCIENCEDIRECT, f"{paper_doi.replace('/', '_')}.pdf"
+                        PDF_DIR_SCIENCEDIRECT,
+                        f"{paper_doi.replace('/', '_')}.pdf",
                     )
                     with open(pdf_filename, "wb") as pdf_file:
                         pdf_file.write(response.content)
@@ -169,7 +173,7 @@ def download_pdf() -> str:
                     count += 1
                 else:
                     print(
-                        f"Error: Content-Type is {response.headers.get('Content-Type')}, not PDF."
+                        f"Error: Content-Type is {response.headers.get('Content-Type')}, not PDF.",
                     )
             else:
                 print(f"Failed to download PDF. Status code: {response.status_code}")
@@ -187,16 +191,17 @@ def download_pdf() -> str:
             doi_code = pdf_url.split("article/")[1] + ".pdf"
             pdf_url = f"https://link.springer.com/content/pdf/{doi_code}"
             print(
-                f"    [INFO]💭 Visiting paper link {_index + 1}/{len(springer_df)}: {pdf_url}"
+                f"    [INFO]💭 Visiting paper link {_index + 1}/{len(springer_df)}: {pdf_url}",
             )
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
             }
             response = requests.get(pdf_url, headers=headers, stream=True)
             if response.status_code == 200:
                 # Form the filename correctly
                 pdf_filename = os.path.join(
-                    PDF_DIR_SPRINGER, f"{doi_code.replace('/', '_')}"
+                    PDF_DIR_SPRINGER,
+                    f"{doi_code.replace('/', '_')}",
                 )
                 with open(pdf_filename, "wb") as pdf_file:
                     for chunk in response.iter_content(chunk_size=1024):
@@ -308,7 +313,7 @@ def extract_university() -> None:
                 print("---" * 30)
 
     combined.to_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv"
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
     )
 
     print("extract_university function completed.")
@@ -336,7 +341,7 @@ def extract_department() -> None:
             combined.at[_index, "Department"] = full_department
 
         combined.to_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv"
+            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
         )
 
     print("Department extraction completed.")
@@ -367,7 +372,7 @@ def extract_countries() -> None:
         print(_index, "No country found")
 
     combined.to_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv"
+        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
     )
     print("Country extraction completed.")
 
