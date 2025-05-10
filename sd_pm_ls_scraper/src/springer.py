@@ -183,7 +183,94 @@ class SpringerScraper:
         except Exception as e:
             print(f"Error handling custom popup: {e}")
 
-    async def searching_and_gathering_papers(self, page):
+    async def discipline_selector_length(self, page) -> int:
+        """
+        Retrieves the number of disciplines available in the discipline selector dialog.
+
+        Args:
+            page (Page): The Playwright page object representing the current browser tab.
+
+        Returns:
+            int: The number of disciplines available.
+        """
+        try:
+            disciplines_list = await page.query_selector(
+                'xpath=//*[@id="popup-filters"]/div[2]/div/div[7]/div/details/div/ol/li'
+            )
+            if disciplines_list:
+                print("     ✅ [INFO] Discipline selector list found.")
+                disciplines_list_available = await page.query_selector_all(
+                    '//*[@id="list-discipline-filter"]/li/div'
+                )
+                return len(disciplines_list_available)
+            else:
+                print("     ❌ [INFO] Discipline selector list not found.")
+                return 0
+        except Exception as e:
+            print(f"    ❌ [INFO] Discipline selector not found or already closed: {e}")
+            return 0
+
+    async def discipline_selector(self, page, start_index: int) -> None:
+        """
+        Handles the discipline selector dialog on the Springer page.
+
+        Args:
+            page (Page): The Playwright page object representing the current browser tab.
+            start_index (int): Index of the discipline to click
+        """
+        try:
+            disciplines_list = await page.query_selector(
+                'xpath=//*[@id="popup-filters"]/div[2]/div/div[7]/div/details/div/ol/li'
+            )
+            if disciplines_list:
+                print("     ✅ [INFO] Discipline selector list found.")
+
+                disciplines_list_available = await page.query_selector_all(
+                    '//*[@id="list-discipline-filter"]/li/div'
+                )
+
+                # Only click on the discipline at the specified index
+                if start_index < len(disciplines_list_available):
+                    try:
+                        await disciplines_list_available[start_index].click()
+                        print(f"     ✅ [INFO] Discipline {start_index + 1} clicked.")
+                        discipline_name = (
+                            await disciplines_list_available[start_index]
+                            .text_content()
+                            .strip()
+                        )
+                        print(
+                            f"     [INFO] Discipline name {discipline_name} selected."
+                        )
+                        # -----------------------------------
+                        await page.evaluate(
+                            "scrollTo(0, 1200);"
+                        )  # Scroll to the top of the page
+                        await page.screenshot(path="discipline_selector_debug.png")
+                        # -----------------------------------
+                    except Exception as e:
+                        print(
+                            f"     ❌ [INFO] Error clicking discipline {start_index + 1}: {e}"
+                        )
+
+                # Click the update button
+                update_button = await page.query_selector(
+                    '//*[@id="popup-filters"]/div[3]/button[2]'
+                )
+                if update_button:
+                    try:
+                        await update_button.click()
+                        print("     ✅ [INFO] Update button clicked.")
+                    except Exception as e:
+                        print(f"     ❌ [INFO] Error clicking update button: {e}")
+            else:
+                print("     ❌ [INFO] Discipline selector list not found.")
+                return
+
+        except Exception as e:
+            print(f"    ❌ [INFO] Discipline selector not found or already closed: {e}")
+
+    async def searching_and_gathering_papers(self, page) -> bool:
         """
         Performs a search on Springer and gathers research articles from the search results page.
         """
