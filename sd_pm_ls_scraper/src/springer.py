@@ -521,58 +521,99 @@ class SpringerScraper:
 
 
 async def async_springer():
-    springer_file_path = (
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv"
-    )
+    springer_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_tests.csv"
+    args = [
+        "--no-sandbox",
+        "--disable-blink-features=AutomationControlled",
+        "--disable-infobars",
+    ]
+    search_term = '("microbial kinetics" OR "growth kinetics") AND ("time-lapse imaging" OR "automated monitoring" OR "growth quantification")'
+    start_date = "2012"
+    end_date = "2025"
+
     async with async_playwright() as pw:
-        args = [
-            "--no-sandbox",
-            "--disable-blink-features=AutomationControlled",
-            "--disable-infobars",
-        ]
-
-        browser = await pw.chromium.launch(headless=False, args=args)
-        context = await browser.new_context(viewport={"width": 1280, "height": 720})
-        page = await context.new_page()
-
-        search_term = '("biological screening" OR "high-throughput screening") AND (microbial OR bacteria OR fungi) AND ("automated imaging" OR "image-based screening")'
-        # max_papers = 100
-        start_date = "2012"
-        end_date = "2025"
-
-        SpringerScraper_obj = SpringerScraper(
-            search_term, max_results=None, start_date=start_date, end_date=end_date
-        )
-
-        try:
-            # Navigate to initial search page
-            await page.goto(SpringerScraper_obj.url)
-            await SpringerScraper_obj._check_cookies(page)
-
-            # Perform pagination
-            await SpringerScraper_obj.pagination(
-                page,
-                # max_pages=2,  # 1 page ~= 20 articles (DEBUG)
+        for current_start_date in range(int(start_date), int(end_date)):
+            current_end_date = current_start_date + 1
+            print(f"{current_start_date} - {current_end_date}")
+            browser = await pw.chromium.launch(headless=False, args=args)
+            context = await browser.new_context(viewport={"width": 1280, "height": 720})
+            page = await context.new_page()
+            SpringerScraper_obj = SpringerScraper(
+                search_term,
+                max_results=None,
+                start_date=current_start_date,
+                end_date=current_end_date,
             )
-            # Save results
-            if SpringerScraper_obj.articles:
-                print(
-                    f"\nSaving {len(SpringerScraper_obj.articles)} total unique articles to CSV file..."
+            try:
+                await page.goto(SpringerScraper_obj.url)
+                await SpringerScraper_obj._check_cookies(page)
+                len_of_disciplines = (
+                    await SpringerScraper_obj.discipline_selector_length(page)
                 )
-                await _save_to_csv(SpringerScraper_obj.articles, _keyword=search_term)
-            else:
-                print("No articles found.")
+                print(f"     [INFO] Number of disciplines: {len_of_disciplines}")
 
-            await SpringerScraper_obj.extract_affiliations_and_full_names(
-                page, springer_file_path
-            )
-        except Exception as err:
-            await page.screenshot(path="unexpected_error.png")
-            print(f"An unexpected error occurred: {err}")
+                # In async_springer function
+                j = 0
+                while j < len_of_disciplines:
+                    try:
+                        # Reset articles list and unique links for each discipline
+                        SpringerScraper_obj.articles = []
+                        SpringerScraper_obj.unique_links = set()
 
-        finally:
-            print("\nClosing browser...")
-            await browser.close()
+                        print(
+                            f"     [INFO] Processing discipline {j + 1}/{len_of_disciplines}"
+                        )
+
+                        await SpringerScraper_obj.discipline_selector(
+                            page, start_index=j
+                        )
+                        await SpringerScraper_obj.pagination(page)
+
+                        if SpringerScraper_obj.articles:
+                            print(
+                                f"\nSaving {len(SpringerScraper_obj.articles)} total unique articles to CSV file..."
+                            )
+                            await _save_to_csv(
+                                SpringerScraper_obj.articles, _keyword=search_term
+                            )
+
+                            try:
+                                # Process affiliations only if articles were found
+                                await SpringerScraper_obj.extract_affiliations_and_full_names(
+                                    page, springer_file_path
+                                )
+                            except Exception as affil_err:
+                                print(f"Error extracting affiliations: {affil_err}")
+                                # Continue despite affiliation extraction errors
+                        else:
+                            print("No articles found for this discipline.")
+
+                    except Exception as discipline_err:
+                        print(f"Error processing discipline {j + 1}: {discipline_err}")
+                        # If we encountered an error processing this discipline,
+                        # log it but continue with the next discipline
+                    finally:
+                        # Always increment j to process the next discipline
+                        j += 1
+                        # If we're not at the last discipline, go back to the search page
+                        if j < len_of_disciplines:
+                            try:
+                                await page.goto(SpringerScraper_obj.url)
+                            except Exception as nav_err:
+                                print(
+                                    f"Error navigating back to search page: {nav_err}"
+                                )
+
+            except Exception as err:
+                try:
+                    if not page.is_closed():
+                        await page.screenshot(path="unexpected_error.png")
+                except Exception as screenshot_err:
+                    print(f"Could not take screenshot: {screenshot_err}")
+                print(f"An unexpected error occurred: {err}")
+            finally:
+                print("\nClosing browser...")
+                await browser.close()
 
 
 if __name__ == "__main__":
