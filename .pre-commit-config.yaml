@@ -6,3 +6,13 @@ repos:
         args: [--fix, --exit-non-zero-on-fix, --ignore=E501]
         exclude: '(^|/)playground\.ipynb$'
     -   id: ruff-format
+
+-   repo: local
+    hooks:
+    -   id: unittest
+        name: unittest
+        entry: python -m unittest discover -s sd_pm_ls_scraper/tests/
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [commit]
