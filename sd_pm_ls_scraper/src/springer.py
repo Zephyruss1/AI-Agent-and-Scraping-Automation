@@ -6,16 +6,36 @@ import pandas as pd
 from playwright.async_api import async_playwright
 
 
+async def _handle_duplicate_csv_filenames(csv_filepath: str) -> None:
+    """Handle the case where the CSV file already exists.
+
+    If the file already exists, append a counter to the filename to create a unique name.
+    """
+    import os
+
+    if not os.path.exists(csv_filepath):
+        return csv_filepath
+
+    base, ext = os.path.splitext(csv_filepath)
+    counter = 1
+    new_csv_filepath = f"{base}_{counter}{ext}"
+    while os.path.exists(new_csv_filepath):
+        counter += 1
+        new_csv_filepath = f"{base}_{counter}{ext}"
+    os.rename(csv_filepath, new_csv_filepath)
+    print(f"     [INFO] Renamed existing file to {new_csv_filepath}")
+    return new_csv_filepath
+
+
 def _load_csv(csv_filepath: str):
     """Load a CSV file and return a DataFrame."""
-
     try:
         return pd.read_csv(csv_filepath)
     except Exception as err:
         raise Exception(f"Error loading CSV file: {err}") from err
 
 
-async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
+async def _save_to_csv(results: List[Dict], _keyword: str) -> str:
     """Save scraped Springer search results to a CSV file.
 
     Writes a list of article dictionaries to a CSV file located at a fixed path, including
@@ -36,7 +56,7 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
         Exception: If an error occurs during file writing, with details about the failure.
 
     Notes:
-        - The output file is hardcoded to '/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv'.
+        - The output file is hardcoded to '/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_tests.csv'.
         - Uses UTF-8 encoding to support special characters in article data.
         - Prints success or info messages to the console for user feedback.
         - Asynchronous function, though it performs synchronous I/O operations.
@@ -60,11 +80,15 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
         "Keyword",
     ]
 
+    # Check if the file already exists and handle duplicates
+    file_name = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_tests.csv"
+    file_name = await _handle_duplicate_csv_filenames(file_name)
+
     # Open the file and write the headers and rows
     try:
         with open(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv",
-            "w",
+            file_name,
+            "a",
             newline="",
             encoding="utf-8",
         ) as f:
@@ -89,18 +113,23 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> None:
                         result.get("authors", "null"),
                         result.get("published_date", "null"),
                         _keyword,
-                    ]
+                    ],
                 )
         print(
-            f"✅ Successfully wrote {len(results)} results to output/springer_results.csv"
+            f"✅ Successfully wrote {len(results)} results to output/springer_results_tests.csv",
         )
     except Exception as err:
         raise Exception(
-            f"    ❌ [ERROR] An error occurred while saving Excel file: {err}"
+            f"    ❌ [ERROR] An error occurred while saving Excel file: {err}",
         ) from err
+    return file_name
 
 
 class SpringerScraper:
+    """
+    A class to scrape research articles from Springer using Playwright.
+    """
+
     print("\n📍 Step 1: Connecting to Springer!")
     print("     🌐 [INFO] Trying to Connecting to Springer...")
 
@@ -123,8 +152,7 @@ class SpringerScraper:
         self.end_date = end_date if end_date else ""
         self.keyword = keyword.replace(" ", "+") if " " in keyword else keyword
         self.base_url = "https://link.springer.com/search"
-        # self.url = 'https://link.springer.com/search?new-search=true&query=%28"biological+screening"+OR+"high-throughput+screening"%29+AND+%28microbial+OR+bacteria+OR+fungi%29+AND+%28"automated+imaging"+OR+"image-based+screening"%29+&content-type=research&content-type=review&dateFrom=&dateTo=&sortBy=relevance'
-        self.url = f"{self.base_url}?new-search=true&query={self.keyword}&content-type=research&dateFrom={self.start_date}&dateTo={self.end_date}&sortBy=relevance"
+        self.url = f"{self.base_url}?new-search=true&query={self.keyword}&content-type=research&content-type=article&dateFrom={self.start_date}&dateTo={self.end_date}&sortBy=relevance"
         self.articles = []
         self.page = None
         self.max_results = max_results
@@ -150,7 +178,7 @@ class SpringerScraper:
 
             await page.wait_for_selector("xpath=/html/body/dialog", timeout=15000)
             close_button = await page.query_selector(
-                "xpath=/html/body/dialog/div/div/div[3]/button"
+                "xpath=/html/body/dialog/div/div/div[3]/button",
             )
             if close_button:
                 print("     🍪 [INFO] Cookies dialog found.")
@@ -172,10 +200,11 @@ class SpringerScraper:
         try:
             # Custom popup Xpath. -> https://prnt.sc/EzOR7WLejg3O
             await page.wait_for_selector(
-                "xpath=///html/body/div[8]/div[2]/div", timeout=10000
+                "xpath=///html/body/div[8]/div[2]/div",
+                timeout=10000,
             )
             close_button = await popup.query_selector(
-                "xpath=///html/body/div[8]/div[2]/div/div[3]/button[2]"
+                "xpath=///html/body/div[8]/div[2]/div/div[3]/button[2]",
             )
             if close_button:
                 await close_button.click()
@@ -194,20 +223,26 @@ class SpringerScraper:
             int: The number of disciplines available.
         """
         try:
+            await page.wait_for_selector(
+                'xpath=//*[@id="popup-filters"]/div[2]/div/div[7]/div/details/div/ol/li',
+                timeout=30000,
+            )
             disciplines_list = await page.query_selector(
-                'xpath=//*[@id="popup-filters"]/div[2]/div/div[7]/div/details/div/ol/li'
+                'xpath=//*[@id="popup-filters"]/div[2]/div/div[7]/div/details/div/ol/li',
             )
             if disciplines_list:
                 print("     ✅ [INFO] Discipline selector list found.")
                 disciplines_list_available = await page.query_selector_all(
-                    '//*[@id="list-discipline-filter"]/li/div'
+                    '//*[@id="list-discipline-filter"]/li/div',
                 )
                 return len(disciplines_list_available)
             else:
                 print("     ❌ [INFO] Discipline selector list not found.")
                 return 0
         except Exception as e:
-            print(f"    ❌ [INFO] Discipline selector not found or already closed: {e}")
+            print(
+                f"    ❌ [INFO] Discipline selector not found or already closed [disc_length]: {e}",
+            )
             return 0
 
     async def discipline_selector(self, page, start_index: int) -> None:
@@ -219,14 +254,18 @@ class SpringerScraper:
             start_index (int): Index of the discipline to click
         """
         try:
+            await page.wait_for_selector(
+                'xpath=//*[@id="popup-filters"]/div[2]/div/div[7]/div/details/div/ol/li',
+                timeout=30000,
+            )
             disciplines_list = await page.query_selector(
-                'xpath=//*[@id="popup-filters"]/div[2]/div/div[7]/div/details/div/ol/li'
+                'xpath=//*[@id="popup-filters"]/div[2]/div/div[7]/div/details/div/ol/li',
             )
             if disciplines_list:
                 print("     ✅ [INFO] Discipline selector list found.")
 
                 disciplines_list_available = await page.query_selector_all(
-                    '//*[@id="list-discipline-filter"]/li/div'
+                    '//*[@id="list-discipline-filter"]/li/div',
                 )
 
                 # Only click on the discipline at the specified index
@@ -234,28 +273,26 @@ class SpringerScraper:
                     try:
                         await disciplines_list_available[start_index].click()
                         print(f"     ✅ [INFO] Discipline {start_index + 1} clicked.")
-                        discipline_name = (
-                            await disciplines_list_available[start_index]
-                            .text_content()
-                            .strip()
-                        )
+                        discipline_name = await disciplines_list_available[
+                            start_index
+                        ].text_content()
                         print(
-                            f"     [INFO] Discipline name {discipline_name} selected."
+                            f"     [INFO] Discipline name {discipline_name} selected.",
                         )
-                        # -----------------------------------
+                        # ---------------START OF DEBUG--------------------
                         await page.evaluate(
-                            "scrollTo(0, 1200);"
+                            "scrollTo(0, 1200);",
                         )  # Scroll to the top of the page
                         await page.screenshot(path="discipline_selector_debug.png")
-                        # -----------------------------------
+                        # ---------------END OF DEBUG--------------------
                     except Exception as e:
                         print(
-                            f"     ❌ [INFO] Error clicking discipline {start_index + 1}: {e}"
+                            f"     ❌ [INFO] Error clicking discipline {start_index + 1}: {e}",
                         )
 
                 # Click the update button
                 update_button = await page.query_selector(
-                    '//*[@id="popup-filters"]/div[3]/button[2]'
+                    '//*[@id="popup-filters"]/div[3]/button[2]',
                 )
                 if update_button:
                     try:
@@ -269,6 +306,29 @@ class SpringerScraper:
 
         except Exception as e:
             print(f"    ❌ [INFO] Discipline selector not found or already closed: {e}")
+
+    async def get_total_results(self, page) -> int:
+        try:
+            result_count_locator = page.locator(
+                "//span[@data-test='results-data-total']/ancestor::div[@class='app-search-filter__result-count u-hide-at-lg']",
+            ).first
+            result_count_text = await result_count_locator.inner_text()
+            total_result = int(
+                result_count_text.split("of")[1]
+                .split("results")[0]
+                .replace(",", "")
+                .strip(),
+            )
+            print(f"total_result: {total_result}")
+            # Check if the locator exists
+            if total_result > 0:
+                return total_result
+            else:
+                print("Result count element not found.")
+                return 0
+        except Exception as e:
+            print(f"Error getting result count: {e}")
+            return 0  # Explicit return 0 to avoid returning None
 
     async def searching_and_gathering_papers(self, page) -> bool:
         """
@@ -284,41 +344,23 @@ class SpringerScraper:
 
         await page.wait_for_load_state("networkidle")
 
-        # # Wait for the search results to load
-        # try:
-        #     await page.wait_for_selector(
-        #         'xpath=//*[@id="main"]//*[@id="main"]/div/div/div/div[2]/div[3]/div[1]', timeout=10000
-        #     )
-        # except Exception as e:
-        #     print(f"Failed to find search results: {e}")
-        #     return False
-
-        # # Fix: use query_selector (not _all) and properly extract text content
-        # total_results_element = await page.query_selector(
-        #     'xpath=//*[@id="main"]//*[@id="main"]/div/div/div/div[2]/div[3]/div[1]/span'
-        # )
-        # if total_results_element:
-        #     total_results_text = await total_results_element.text_content()
-        #     print(f"     [INFO] Found {total_results_text}")
-        # else:
-        #     print("     [INFO] Could not determine total results")
-
         # Wait for article list to load
         try:
             await page.wait_for_selector(
-                'xpath=//*[@id="main"]/div/div/div/div[2]/div[3]/ol', timeout=10000
+                'xpath=//*[@id="main"]/div/div/div/div[2]/div[3]/ol',
+                timeout=10000,
             )
         except Exception as e:
             print(f"Failed to load article list: {e}")
             return False
 
         articles = await page.query_selector_all(
-            'xpath=//*[@id="main"]/div/div/div/div[2]/div[3]/ol/li'
+            'xpath=//*[@id="main"]/div/div/div/div[2]/div[3]/ol/li',
         )
 
         if not articles:
             print(
-                "No articles found. Check if the selector is correct or if content is loaded."
+                "No articles found. Check if the selector is correct or if content is loaded.",
             )
             return False
 
@@ -368,7 +410,7 @@ class SpringerScraper:
                 )
 
                 authors_element = await article.query_selector(
-                    "xpath=.//div/div[3]/div"
+                    "xpath=.//div/div[3]/div",
                 )
                 authors = (
                     await authors_element.text_content()
@@ -378,7 +420,7 @@ class SpringerScraper:
                 authors = re.sub(r"\s+in\s.*$", "", authors)
                 authors = authors.replace("...", "").strip()
                 published_date_element = await article.query_selector(
-                    "xpath=.//div/div[4]/div/span[1]"
+                    "xpath=.//div/div[4]/div/span[1]",
                 )
                 published_date = (
                     await published_date_element.text_content()
@@ -414,6 +456,10 @@ class SpringerScraper:
         """
         current_page = 1
         found_any_articles = False
+
+        # Get the current URL after filtering
+        base_url = page.url
+
         while True:
             # Check stopping conditions
             if (max_pages and current_page > max_pages) or (
@@ -422,13 +468,22 @@ class SpringerScraper:
                 print(
                     f"     [INFO] Stopping pagination. "
                     f"Current page: {current_page}, "
-                    f"Total articles: {len(self.articles)}"
+                    f"Total articles: {len(self.articles)}",
                 )
                 break
 
             try:
-                # Construct paginated URL
-                paginated_url = f"{self.url}&page={current_page}"
+                # Construct paginated URL using current page URL as base
+                page_param = "page=" + str(current_page)
+                if "page=" in base_url:
+                    # Replace existing page parameter
+                    paginated_url = re.sub(r"page=\d+", page_param, base_url)
+                else:
+                    # Add page parameter
+                    paginated_url = (
+                        base_url + ("&" if "?" in base_url else "?") + page_param
+                    )
+
                 print(f"     [INFO] Navigating to page {current_page}: {paginated_url}")
 
                 # Navigate to the paginated URL
@@ -453,25 +508,27 @@ class SpringerScraper:
                 break
 
         print(
-            f"     [INFO] Pagination complete. Total pages: {current_page - 1}, Total unique articles: {len(self.articles)}"
+            f"     [INFO] Pagination complete. Total pages: {current_page - 1}, Total unique articles: {len(self.articles)}",
         )
         return found_any_articles
 
     async def extract_affiliations_and_full_names(
-        self, page, csv_file_path: str
+        self,
+        page,
+        csv_file_path: str,
     ) -> None:
         """Extract affiliations and full names from the Springer article page."""
         # Check cookies only once
 
         _csv_file = _load_csv(csv_file_path)
-
+        _csv_file.drop_duplicates(inplace=True)
         print("\n📍 Step 3: Extracting affiliations and full names!")
 
         for _index, row in _csv_file.iterrows():
             paper_link = row["Link"]
             await page.goto(paper_link)
             print(f"    [INFO] Navigating to paper: {paper_link}")
-            # await page.wait_for_load_state("networkidle") # NOTE: Having issue with this line about timeout...
+            # await page.wait_for_load_state("networkidle") # FIXME: Having issue with this line about timeout...
             try:
                 try:
                     await page.wait_for_selector(
@@ -483,12 +540,12 @@ class SpringerScraper:
                     continue
                 # retrieve affiliations full list
                 affiliations = await page.query_selector_all(
-                    'xpath=//*[@id="Aff1"]/p[1]'
+                    'xpath=//*[@id="Aff1"]/p[1]',
                 )
 
                 # reitrieve authors full list
                 authors = await page.query_selector_all(
-                    '//ul[contains(@class, "c-article-author-list")]//li//a'
+                    '//ul[contains(@class, "c-article-author-list")]//li//a',
                 )
 
                 try:
@@ -522,99 +579,151 @@ class SpringerScraper:
 
 
 async def async_springer():
-    springer_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_tests.csv"
     args = [
         "--no-sandbox",
         "--disable-blink-features=AutomationControlled",
         "--disable-infobars",
     ]
-    search_term = '("microbial kinetics" OR "growth kinetics") AND ("time-lapse imaging" OR "automated monitoring" OR "growth quantification")'
+    search_term = '(CFU OR "colony forming unit" OR "colony counting") AND ("automated imaging" OR "image analysis" OR "colony counter" OR "colony detection" OR "machine learning" OR robotics)'
     start_date = "2012"
     end_date = "2025"
 
     async with async_playwright() as pw:
-        for current_start_date in range(int(start_date), int(end_date)):
-            current_end_date = current_start_date + 1
-            print(f"{current_start_date} - {current_end_date}")
-            browser = await pw.chromium.launch(headless=False, args=args)
-            context = await browser.new_context(viewport={"width": 1280, "height": 720})
-            page = await context.new_page()
-            SpringerScraper_obj = SpringerScraper(
-                search_term,
-                max_results=None,
-                start_date=current_start_date,
-                end_date=current_end_date,
-            )
-            try:
+        # In async_springer function
+        SpringerScraper_obj = SpringerScraper(
+            search_term,
+            max_results=None,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        browser = await pw.chromium.launch(headless=False, args=args)
+        context = await browser.new_context(viewport={"width": 1280, "height": 720})
+        page = await context.new_page()
+        try:
+            if SpringerScraper_obj:
                 await page.goto(SpringerScraper_obj.url)
                 await SpringerScraper_obj._check_cookies(page)
-                len_of_disciplines = (
-                    await SpringerScraper_obj.discipline_selector_length(page)
-                )
-                print(f"     [INFO] Number of disciplines: {len_of_disciplines}")
 
-                # In async_springer function
-                j = 0
-                while j < len_of_disciplines:
-                    try:
-                        # Reset articles list and unique links for each discipline
-                        SpringerScraper_obj.articles = []
-                        SpringerScraper_obj.unique_links = set()
+                total_results = await SpringerScraper_obj.get_total_results(page)
+                # First check for total results
+                print(f"     [INFO] [Step-1] Checking total results: {total_results}")
+                if total_results > 1000:
+                    print(
+                        f"     ✅ [INFO] [Step-1] After checking total results ({total_results}) are greater than 1000. "
+                        "Proceeding with complex filtering.",
+                    )
+                    for current_start_date in range(
+                        int(start_date),
+                        int(end_date),
+                        step=2,
+                    ):
+                        current_end_date = current_start_date + 1
+                        print(f"{current_start_date} - {current_end_date}")
 
+                        SpringerScraper_obj = SpringerScraper(
+                            search_term,
+                            max_results=None,
+                            start_date=current_start_date,
+                            end_date=current_end_date,
+                        )
+                        await page.goto(SpringerScraper_obj.url)
+                        total_results = await SpringerScraper_obj.get_total_results(
+                            page,
+                        )
+                        # Second check for total results
                         print(
-                            f"     [INFO] Processing discipline {j + 1}/{len_of_disciplines}"
+                            f"     [INFO] [Step-2] Checking total results: {total_results}",
                         )
-
-                        await SpringerScraper_obj.discipline_selector(
-                            page, start_index=j
-                        )
-                        await SpringerScraper_obj.pagination(page)
-
-                        if SpringerScraper_obj.articles:
+                        if total_results > 1000:
                             print(
-                                f"\nSaving {len(SpringerScraper_obj.articles)} total unique articles to CSV file..."
+                                f"     ✅ [INFO] [Step-2] After filtering range years total results ({total_results}) are greater than 1000. "
+                                "Proceeding with complex filtering.",
                             )
-                            await _save_to_csv(
-                                SpringerScraper_obj.articles, _keyword=search_term
+                            len_of_disciplines = (
+                                await SpringerScraper_obj.discipline_selector_length(
+                                    page,
+                                )
+                            )
+                            print(
+                                f"     [INFO] Number of disciplines: {len_of_disciplines}",
                             )
 
-                            try:
-                                # Process affiliations only if articles were found
-                                await SpringerScraper_obj.extract_affiliations_and_full_names(
-                                    page, springer_file_path
-                                )
-                            except Exception as affil_err:
-                                print(f"Error extracting affiliations: {affil_err}")
-                                # Continue despite affiliation extraction errors
+                            j = 0
+                            while j < len_of_disciplines:
+                                try:
+                                    # Reset articles list and unique links for each discipline
+                                    SpringerScraper_obj.articles = []
+                                    SpringerScraper_obj.unique_links = set()
+
+                                    print(
+                                        f"     [INFO] Processing discipline {j + 1}/{len_of_disciplines}",
+                                    )
+
+                                    await SpringerScraper_obj.discipline_selector(
+                                        page,
+                                        start_index=j,
+                                    )
+
+                                    await SpringerScraper_obj.pagination(page)
+
+                                    if SpringerScraper_obj.articles:
+                                        print(
+                                            f"\nSaving {len(SpringerScraper_obj.articles)} total unique articles to CSV file...",
+                                        )
+                                    else:
+                                        print("No articles found for this discipline.")
+
+                                except Exception as discipline_err:
+                                    print(
+                                        f"Error processing discipline {j + 1}: {discipline_err}",
+                                    )
+                                finally:
+                                    j += 1
+                                    if j < len_of_disciplines:
+                                        try:
+                                            await page.goto(SpringerScraper_obj.url)
+                                        except Exception as nav_err:
+                                            print(
+                                                f"Error navigating back to search page: {nav_err}",
+                                            )
                         else:
-                            print("No articles found for this discipline.")
+                            print(
+                                f"     ✅ [INFO] [Step-2] After filtering range years total results ({total_results}) are greater than 1000. "
+                                "Proceeding without complex filtering.",
+                            )
+                            await page.goto(SpringerScraper_obj.url)
+                            await SpringerScraper_obj.pagination(page)
+                else:
+                    print(
+                        f"     ✅ [INFO] [Step-1] After checking total results ({total_results}) are greater than 1000. "
+                        "Proceeding without complex filtering.",
+                    )
+                    await page.goto(SpringerScraper_obj.url)
+                    await SpringerScraper_obj.pagination(page)
 
-                    except Exception as discipline_err:
-                        print(f"Error processing discipline {j + 1}: {discipline_err}")
-                        # If we encountered an error processing this discipline,
-                        # log it but continue with the next discipline
-                    finally:
-                        # Always increment j to process the next discipline
-                        j += 1
-                        # If we're not at the last discipline, go back to the search page
-                        if j < len_of_disciplines:
-                            try:
-                                await page.goto(SpringerScraper_obj.url)
-                            except Exception as nav_err:
-                                print(
-                                    f"Error navigating back to search page: {nav_err}"
-                                )
-
-            except Exception as err:
-                try:
-                    if not page.is_closed():
-                        await page.screenshot(path="unexpected_error.png")
-                except Exception as screenshot_err:
-                    print(f"Could not take screenshot: {screenshot_err}")
-                print(f"An unexpected error occurred: {err}")
-            finally:
-                print("\nClosing browser...")
-                await browser.close()
+        except Exception as err:
+            try:
+                if not page.is_closed():
+                    await page.screenshot(path="unexpected_error.png")
+            except Exception as screenshot_err:
+                print(f"Could not take screenshot: {screenshot_err}")
+            print(f"An unexpected error occurred: {err}")
+        finally:
+            try:
+                springer_file_path = await _save_to_csv(
+                    SpringerScraper_obj.articles,
+                    _keyword=search_term,
+                )
+                # Process affiliations only if articles were found
+                await SpringerScraper_obj.extract_affiliations_and_full_names(
+                    page,
+                    springer_file_path,
+                )
+            except Exception as affil_err:
+                print(f"Error extracting affiliations: {affil_err}")
+                # Continue despite affiliation extraction errors
+            print("\nClosing browser...")
+            await browser.close()
 
 
 if __name__ == "__main__":
