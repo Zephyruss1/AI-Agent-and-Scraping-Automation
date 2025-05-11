@@ -328,21 +328,25 @@ class WebSearch:
             try:
                 response_json = response.json()
                 raw_content = response_json["choices"][0]["message"]["content"]
+                print(f"Raw content:\n{raw_content}")
                 # Use regex to extract the JSON part from the full content
-
+                return raw_content
+                # --------------------- deprecated for reason: need raw content ---------------------
+                # -----------------------------------------------------------------------------
                 # Try to extract the JSON string
-                json_match = re.search(r"\{.*\}", raw_content, re.DOTALL)
-                if json_match:
-                    try:
-                        parsed = json.loads(json_match.group(0))
-                        answer = parsed.get("answer", "No answer found")
-                        print(f"📘 Answer: {answer}")
-                        return answer
-                    except json.JSONDecodeError as e:
-                        print(f"⚠️ Failed to parse JSON: {e}")
-                else:
-                    print("⚠️ No JSON object found.")
-                return "No answer found"
+                # json_match = re.search(r"\{.*\}", raw_content, re.DOTALL)
+                # if json_match:
+                #     try:
+                #         parsed = json.loads(json_match.group(0))
+                #         answer = parsed.get("answer", "No answer found")
+                #         print(f"📘 Answer: {answer}")
+                #         return answer
+                #     except json.JSONDecodeError as e:
+                #         print(f"⚠️ Failed to parse JSON: {e}")
+                # else:
+                #     print("⚠️ No JSON object found.")
+                # return "No answer found"
+                # -----------------------------------------------------------------------------
             except Exception as err:
                 print(f"Unexcepted error: {err}")
 
