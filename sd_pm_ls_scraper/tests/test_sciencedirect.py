@@ -82,6 +82,6 @@ def test_sciencedirect_scraper_csv_output(credentials):
     # Check if the CSV file is created
     save_csv(scraper, keyword)
 
-    csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv"
+    csv_file_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/sciencedirect_results.csv"
     assert os.path.exists(csv_file_path)
     assert os.path.getsize(csv_file_path) > 0
