@@ -49,7 +49,7 @@ def _save_excel(author_list: List[Dict], keyword: List[str]) -> None:
         )
 
     try:
-        wb.save("/root/arxiv-and-scholar-scraping/arxiv_project/output")
+        wb.save("/root/AI-Agent-and-Scraping-Automation/arxiv_project/output")
         print("    ✅ [INFO] Details successfully saved to Excel!")
     except Exception as e:
         print(f"    ❌ [ERROR] An error occurred while saving Excel file: {e}")
@@ -444,7 +444,7 @@ class DownloadPDF:
     def download_arxiv_pdf(
         self,
         pdf_url: str,
-        save_dir: str = "/root/arxiv-and-scholar-scraping/arxiv_project/output/pdfs/",
+        save_dir: str = "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output/pdfs/",
     ) -> bool:
         """Download PDF from the given URL using requests."""
         if not pdf_url:
@@ -498,7 +498,7 @@ class DownloadPDF:
         """Start downloading PDFs with rate limiting consideration."""
         print("\n📍 Step 6: Downloading PDFs!")
         ws = await _load_excel(
-            filename="/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data.xlsx",
+            filename="/root/AI-Agent-and-Scraping-Automation/arxiv_project/output/arxiv_scraped_data.xlsx",
         )
 
         if not ws:
@@ -572,7 +572,7 @@ async def async_main():
 
         # Step 7: Download PDFs
         download_pdf = DownloadPDF(
-            "/root/arxiv-and-scholar-scraping/arxiv_project/output",
+            "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output",
         )
         await download_pdf.start_download()
 

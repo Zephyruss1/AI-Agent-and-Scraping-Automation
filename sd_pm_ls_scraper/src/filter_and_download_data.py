@@ -11,18 +11,18 @@ warnings.filterwarnings("ignore")
 
 # Define base directory path
 os.makedirs(
-    "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/sciencedirect",
+    "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pdfs/sciencedirect",
     exist_ok=True,
 )
 os.makedirs(
-    "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/pubmed",
+    "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pdfs/pubmed",
     exist_ok=True,
 )
 os.makedirs(
-    "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/springer",
+    "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pdfs/springer",
     exist_ok=True,
 )
-BASE_DIR = "/root/arxiv-and-scholar-scraping"
+BASE_DIR = "/root/AI-Agent-and-Scraping-Automation"
 
 PDF_DIR_SCIENCEDIRECT = os.path.join(
     BASE_DIR,
@@ -224,15 +224,15 @@ def amount_of_mentions() -> None:
     # Load all three exploded CSV files
     try:
         df1 = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv",
+            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pubmed_results.csv",
             parse_dates=["Date"],
         )
         df2 = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
+            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/sciencedirect_results.csv",
             parse_dates=["Date"],
         )
         df3 = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv",
+            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/springer_results.csv",
             parse_dates=["Date"],
         )
     except FileNotFoundError as e:
@@ -264,7 +264,7 @@ def amount_of_mentions() -> None:
     )
 
     df_newest.to_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/cleaned_total_results.csv",
     )
 
 
@@ -276,7 +276,7 @@ def extract_university() -> None:
     print("Starting extract_university function...")
     try:
         combined = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_total_results.csv",
+            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/cleaned_total_results.csv",
             parse_dates=["Date"],
         )
     except FileNotFoundError as e:
@@ -313,7 +313,7 @@ def extract_university() -> None:
                 print("---" * 30)
 
     combined.to_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/all_results.csv",
     )
 
     print("extract_university function completed.")
@@ -326,7 +326,7 @@ def extract_department() -> None:
     print("Starting extract_department function...")
     try:
         combined = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
+            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/all_results.csv",
             parse_dates=["Date"],
         )
     except FileNotFoundError as e:
@@ -341,7 +341,7 @@ def extract_department() -> None:
             combined.at[_index, "Department"] = full_department
 
         combined.to_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
+            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/all_results.csv",
         )
 
     print("Department extraction completed.")
@@ -354,7 +354,7 @@ def extract_countries() -> None:
     print("Starting extract_countries function...")
     try:
         combined = pd.read_csv(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
+            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/all_results.csv",
             parse_dates=["Date"],
         )
     except FileNotFoundError as e:
@@ -372,7 +372,7 @@ def extract_countries() -> None:
         print(_index, "No country found")
 
     combined.to_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/all_results.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/all_results.csv",
     )
     print("Country extraction completed.")
 
@@ -413,9 +413,9 @@ def main():
 
     # Fix the file paths to match what was actually generated
     csv_file_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pubmed_results",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/sciencedirect_results",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/springer_results",
     ]
 
     # Check if files exist before proceeding
