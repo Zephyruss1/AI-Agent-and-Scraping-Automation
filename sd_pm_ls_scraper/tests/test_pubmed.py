@@ -73,9 +73,7 @@ def test_pubmed_scraper_csv_output():
     assert isinstance(results, list)
 
     # Check if the CSV file is created
-    csv_file_path = (
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
-    )
+    csv_file_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pubmed_results.csv"
     with open(csv_file_path, "w") as f:
         f.write("PubMed ID\n")
         for result in results:
