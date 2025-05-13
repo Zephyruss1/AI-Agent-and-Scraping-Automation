@@ -8,9 +8,11 @@ from Bio import Entrez, Medline
 Entrez.email = "your.email@example.com"
 
 # Directory to save PDFs
-PDF_DIR = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output"
+PDF_DIR = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output"
 os.makedirs(PDF_DIR, exist_ok=True)
-CSV_FILE = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
+CSV_FILE = (
+    "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pubmed_results.csv"
+)
 
 
 def search_pubmed(query, max_results: int = None, date_ranges: list = None):

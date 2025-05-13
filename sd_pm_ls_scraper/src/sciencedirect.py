@@ -115,7 +115,7 @@ def make_request(
 def save_csv(results: list, _keyword: str) -> None:
     if results:
         os.makedirs(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output",
+            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output",
             exist_ok=True,
         )
 
@@ -130,7 +130,7 @@ def save_csv(results: list, _keyword: str) -> None:
             "Keyword",
         ]
         with open(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv",
+            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/sciencedirect_results.csv",
             "w",
             newline="",
             encoding="utf-8",
