@@ -154,8 +154,8 @@ def main():
     )
 
     if st.sidebar.button("Start Search"):
-        output_csv_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv"
-        output_xlsx_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.xlsx"
+        output_csv_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/downloaded_sheet.csv"
+        output_xlsx_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/downloaded_sheet.xlsx"
 
         if model_choice == "ChatGPT [Browser-Use]":
             if purpose_choice == "Find Email Addresses":

@@ -38,7 +38,7 @@ def load_spreadsheet(spreadsheet_link: str = None) -> pd.DataFrame:
 
     # Setup credentials
     json_keyfile = (
-        "/root/arxiv-and-scholar-scraping/aiagenttest-455613-a4d701f3b9ce.json"
+        "/root/AI-Agent-and-Scraping-Automation/aiagenttest-455613-a4d701f3b9ce.json"
     )
     scope = [
         "https://spreadsheets.google.com/feeds",
@@ -76,7 +76,7 @@ def load_spreadsheet(spreadsheet_link: str = None) -> pd.DataFrame:
 
     if response.status_code == 200:
         with open(
-            "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.xlsx",
+            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/downloaded_sheet.xlsx",
             "wb",
         ) as f:
             f.write(response.content)
@@ -93,7 +93,7 @@ def write_to_spreadsheet() -> None:
     """
     # Create a DataFrame with multiple test rows
     df = pd.read_csv(
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     )
 
     # Clean up the DataFrame to handle NaN, Infinity, etc.
@@ -116,7 +116,7 @@ def write_to_spreadsheet() -> None:
 
     client = gspread.authorize(
         ServiceAccountCredentials.from_json_keyfile_name(
-            "/root/arxiv-and-scholar-scraping/aiagenttest-455613-a4d701f3b9ce.json",
+            "/root/AI-Agent-and-Scraping-Automation/aiagenttest-455613-a4d701f3b9ce.json",
             [
                 "https://spreadsheets.google.com/feeds",
                 "https://www.googleapis.com/auth/drive",
@@ -154,9 +154,7 @@ def write_to_spreadsheet() -> None:
 
 def convert_excel_to_csv() -> pd.DataFrame:
     """Convert the excel file to a CSV file."""
-    file_path = (
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.xlsx"
-    )
+    file_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/downloaded_sheet.xlsx"
     if not file_path.endswith(".xlsx"):
         raise ValueError("File name must end with .xlsx")
 
@@ -833,7 +831,7 @@ def chatgpt_fill_empty_emails_with_search(
     start_index: Optional[int] = None,
 ):
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     ]
 
     for csv_path in csv_paths:
@@ -880,7 +878,7 @@ def chatgpt_fill_empty_jobs_with_search(
     start_index: Optional[int] = None,
 ):
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     ]
 
     for csv_path in csv_paths:
@@ -925,7 +923,7 @@ def perplexity_general_search(
     start_index: Optional[int] = None,
 ):
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     ]
 
     for csv_path in csv_paths:
@@ -972,7 +970,7 @@ def perplexity_fill_empty_emails_with_search(
     start_index: Optional[int] = None,
 ):
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     ]
 
     for csv_path in csv_paths:
@@ -1028,7 +1026,7 @@ def perplexity_fill_empty_jobs_with_search(
     start_index: Optional[int] = None,
 ):
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/downloaded_sheet.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/downloaded_sheet.csv",
     ]
 
     for csv_path in csv_paths:
