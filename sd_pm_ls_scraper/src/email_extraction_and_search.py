@@ -498,9 +498,9 @@ class FindSimilarity:
 def extract_job_titles_from_pdf():
     # Step 1: Load PDFs from each path and process them one by one
     pdf_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/sciencedirect/",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/pubmed/",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pdfs/springer/",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pdfs/sciencedirect/",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pdfs/pubmed/",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pdfs/springer/",
     ]
 
     for pdf_path in pdf_paths:
@@ -513,11 +513,11 @@ def extract_job_titles_from_pdf():
 
         # Step 2: Determine which CSV to load based on the PDF path
         if "sciencedirect" in pdf_path:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/sciencedirect_results.csv"
+            csv_file_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/sciencedirect_results.csv"
         elif "pubmed" in pdf_path:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/pubmed_results.csv"
+            csv_file_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pubmed_results.csv"
         else:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results.csv"
+            csv_file_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/springer_results.csv"
 
         # Load the CSV file and initialize FindSimilarity class with the file path
         df_csv = _load_csv(file_name=csv_file_path)
@@ -540,9 +540,9 @@ def extract_job_titles_from_pdf():
 
 def fill_empty_emails_with_search():
     csv_paths = [
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_sciencedirect_results.csv",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_pubmed_results.csv",
-        "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_springer_results.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/cleaned_sciencedirect_results.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/cleaned_pubmed_results.csv",
+        "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/cleaned_springer_results.csv",
     ]
 
     for csv_path in csv_paths:
@@ -555,11 +555,11 @@ def fill_empty_emails_with_search():
             _csv["job_title"] = ""  # Add the 'job_title' column if missing
 
         if "sciencedirect" in csv_path:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_sciencedirect_results.csv"
+            csv_file_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/cleaned_sciencedirect_results.csv"
         if "pubmed" in csv_path:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_pubmed_results.csv"
+            csv_file_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/cleaned_pubmed_results.csv"
         else:
-            csv_file_path = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/cleaned_springer_results.csv"
+            csv_file_path = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/cleaned_springer_results.csv"
 
         # Step 5: Search for email addresses using the AI Search
         for _index, row in _csv.iloc[:10].iterrows():

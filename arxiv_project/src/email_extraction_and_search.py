@@ -27,7 +27,9 @@ class LoadPDF:
     print("\n📍 Step 7: Loading PDFs and Extracting Text!")
 
     def __init__(self):
-        self.pdf_dir = "/root/arxiv-and-scholar-scraping/arxiv_project/output/pdfs/"
+        self.pdf_dir = (
+            "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output/pdfs/"
+        )
 
     def extract_text_from_pdf(self) -> str:
         """Extract text from a PDF file."""
@@ -125,7 +127,7 @@ class WebSearch:
         self.config = config
         self.author_name = name
         wb, ws = _load_excel(
-            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
+            "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
         )
         self.headers = [
             str(cell.value).strip().lower() if cell.value else None for cell in ws[1]
@@ -223,7 +225,7 @@ class FindSimilarity:
         """Find the email address and author name using Cosine Similarity."""
         print("\n📍 Step 9: Finding Similarity and Saving to Excel!")
         wb, ws = _load_excel(
-            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
+            "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
         )
         headers = [
             str(cell.value).strip().lower() if cell.value else None for cell in ws[1]
@@ -281,7 +283,7 @@ class FindSimilarity:
                 ws.cell(row=last_row, column=email_column, value=email)
 
         return wb.save(
-            "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
+            "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
         )
 
 
@@ -306,7 +308,7 @@ def extract():
 
 def fill_empty_emails_with_search():
     wb, ws = _load_excel(
-        "/root/arxiv-and-scholar-scraping/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
+        "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output/arxiv_scraped_data_backup.xlsx",
     )
 
     headers = [cell.value for cell in ws[1]]
