@@ -16,7 +16,7 @@ async def _load_excel(filename: str):
     return ws
 
 
-def _save_excel(author_list: List[Dict], keyword: List[str]) -> None:
+def _save_excel(author_list: List[Dict], link: str) -> None:
     if not author_list:
         print("     [INFO] No author details found!")
         return
@@ -42,34 +42,26 @@ def _save_excel(author_list: List[Dict], keyword: List[str]) -> None:
                 author.get("PaperID", "null"),
                 author.get("LastPaperLink", "null"),
                 author.get("AmountOfMentions", "null"),
-                ", ".join(author.get("Keyword", ["null"]))
-                if isinstance(author.get("Keyword", list), list)
-                else author.get("Keyword", "null"),
+                link,
             ],
         )
 
     try:
-        wb.save("/root/AI-Agent-and-Scraping-Automation/arxiv_project/output")
+        # Ensure the output directory exists
+        output_dir = "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output"
+        os.makedirs(output_dir, exist_ok=True)
+        # Save to a file, not a directory!
+        output_file = os.path.join(output_dir, "arxiv_scraped_data.xlsx")
+        wb.save(output_file)
         print("    ✅ [INFO] Details successfully saved to Excel!")
     except Exception as e:
         print(f"    ❌ [ERROR] An error occurred while saving Excel file: {e}")
 
 
 class ArxivScraper:
-    def __init__(
-        self,
-        keyword: Optional[List[str]] = None,
-        OR: Optional[List[str]] = None,
-        NOT: Optional[List[str]] = None,
-        date_from: str = None,
-        date_to: str = None,
-    ):
+    def __init__(self, link: str):
         self.page = None
-        self.keyword = keyword if keyword is not None else []
-        self.OR = OR if OR is not None else []
-        self.NOT = NOT if NOT is not None else []
-        self.date_from = date_from
-        self.date_to = date_to
+        self.link = link
         self.papers: List[Dict] = []
 
     async def pagination(self) -> bool:
@@ -93,70 +85,12 @@ class ArxivScraper:
     async def connect_to_arxiv_and_search(self):
         print("\n📍 Step 1: Connecting to Arxiv!")
 
-        url = "https://arxiv.org/search/advanced"
-
         try:
-            await self.page.goto(url, wait_until="load")
+            await self.page.goto(self.link, wait_until="load")
             await asyncio.sleep(2)
             print("     ✅ [INFO] Arxiv connection successful!")
         except Exception as e:
             print(f"     ❌ [ERROR] An error occurred during navigation: {e}")
-
-        try:
-            if self.date_from or self.date_to:
-                date_range = self.page.locator('xpath=//*[@id="date-filter_by-3"]')
-                await date_range.click()
-                date_from_box = self.page.locator('xpath=//*[@id="date-from_date"]')
-                date_to_box = self.page.locator('xpath=//*[@id="date-to_date"]')
-                await date_from_box.fill(self.date_from)
-                await asyncio.sleep(1)
-                await date_to_box.fill(self.date_to)
-                await asyncio.sleep(1)
-
-            # Combine all search terms (keyword, OR, NOT)
-            search_terms = []
-            if self.keyword:
-                search_terms.extend(
-                    self.keyword if isinstance(self.keyword, list) else [self.keyword],
-                )
-            if self.OR:
-                search_terms.extend(self.OR if isinstance(self.OR, list) else [self.OR])
-            if self.NOT:
-                search_terms.extend(
-                    self.NOT if isinstance(self.NOT, list) else [self.NOT],
-                )
-
-            # Fill the first search box (already present)
-            search_box = self.page.locator('xpath=//*[@id="terms-0-term"]')
-            await search_box.fill(search_terms[0])
-
-            # Handle additional search terms dynamically
-            for i, term in enumerate(search_terms[1:], start=1):
-                add_button_xpath = (
-                    f'//*[@id="terms-fieldset"]/fieldset/div[{i + 1}]/div/button[1]'
-                )
-                another_term_button = self.page.locator(f"xpath={add_button_xpath}")
-
-                await another_term_button.click()
-                await asyncio.sleep(1)
-
-                dropdown_xpath = self.page.locator(
-                    f'xpath=//*[@id="terms-{i}-operator"]',
-                )
-                if term in self.OR:
-                    await dropdown_xpath.select_option("OR")
-                elif term in self.NOT:
-                    await dropdown_xpath.select_option("NOT")
-                else:
-                    await dropdown_xpath.select_option("AND")
-
-                new_search_box = self.page.locator(f'xpath=//*[@id="terms-{i}-term"]')
-                await new_search_box.fill(term)
-                print(f"     [INFO] Entered: {term}")
-
-            await search_box.press("Enter")
-        except Exception as e:
-            print(f"     ❌ [ERROR] An error occurred while searching: {e}")
 
     # NOTE: The cosine_similarity method ideal candidate to scrap paper tags and
     # inspect to if paper content is related with tag
@@ -252,7 +186,7 @@ class ArxivScraper:
                                     "AuthorID": 0,
                                     "LastPaperLink": "",
                                     "AmountOfMentions": 0,
-                                    "Keyword": self.keyword,
+                                    "Link": self.link,
                                 },
                             )
 
@@ -546,9 +480,7 @@ async def async_main():
 
         # Create the ArxivScraper instance and assign the open page
         arxiv_scraper = ArxivScraper(
-            keyword=["microbial kinetics AND CFU"],
-            date_from="2022-01-01",
-            date_to="2023-01-07",
+            link="https://arxiv.org/search/advanced?advanced=1&terms-0-operator=AND&terms-0-term=machine+learning&terms-0-field=title&terms-1-operator=AND&terms-1-term=biology&terms-1-field=title&classification-computer_science=y&classification-physics_archives=all&classification-include_cross_list=include&date-year=&date-filter_by=date_range&date-from_date=2012-02-01&date-to_date=2025-01-01&date-date_type=submitted_date&abstracts=show&size=50&order=-announced_date_first",
         )
         arxiv_scraper.page = page
 
@@ -568,7 +500,7 @@ async def async_main():
         await arxiv_scraper.get_related_paper_details()
 
         # step 6: Save the scraped details to an Excel file
-        _save_excel(arxiv_scraper.papers, arxiv_scraper.keyword)
+        _save_excel(arxiv_scraper.papers, arxiv_scraper.link)
 
         # Step 7: Download PDFs
         download_pdf = DownloadPDF(
