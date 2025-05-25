@@ -186,11 +186,26 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
 
 
 if __name__ == "__main__":
-    # Example usage: search_pubmed_with_date_ranges("bacterial growth AND antibiotics", [("2010/01/01", "2020/12/31")])
-    search_term = '("biological screening" OR "high-throughput screening") AND (microbial OR bacteria OR fungi) AND ("automated imaging" OR "image-based screening")'
+    link = "https://pubmed.ncbi.nlm.nih.gov/?term=machine+learning+and+cancer+diagnosis+and+medicine&filter=years.2016-2025"
+
+    if "&filter=years" not in link:
+        search_term = link.split("term=")[1].replace("+", " ")
+    else:
+        search_term = link.split("term=")[1].split("&filter=years")[0].replace("+", " ")
+
+    if "years." not in link:
+        print("No date range specified in the link. Using default date range.")
+        start_date = "1900"
+        end_date = "2050"
+    else:
+        start_date = link.split("years.")[1].split("-")[0]
+        end_date = link.split("years.")[1].split("-")[1]
+
+    print(f"Search term: {search_term}")
+    print(f"start_date {start_date}\nend_date {end_date}")
+
     date_ranges = [
-        ("2012/01/01", "2025/12/31"),
-        ("2026/01/01", "2050/12/31"),
+        (f"{start_date}/01/01", f"{end_date}/12/31"),
     ]
     max_results = 1000
 
