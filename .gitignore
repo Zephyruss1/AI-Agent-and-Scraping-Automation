@@ -22,3 +22,4 @@ sd_pm_ls_scraper/output
 TODO.txt
 *.png
 *.ipynb
+.xlsx
