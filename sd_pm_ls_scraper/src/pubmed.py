@@ -1,11 +1,15 @@
 import csv
 import os
 import time
+from datetime import datetime, timedelta
 
 from Bio import Entrez, Medline
+from dotenv import load_dotenv
 
+load_dotenv()
 # Set your email for NCBI API access
 Entrez.email = "your.email@example.com"
+Entrez.api_key = os.getenv("NCBI_API_KEY")
 
 # Directory to save PDFs
 PDF_DIR = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output"
@@ -15,20 +19,11 @@ CSV_FILE = (
 )
 
 
-def search_pubmed(query, max_results: int = None, date_ranges: list = None):
+def search_pubmed(query, max_results=None, date_ranges=None):
     if not date_ranges:
-        date_ranges = [("1900/01/01", "2050/12/31")]
-    """Search PubMed
-    Args:
-        query (str): Search query
-        max_results (int): Maximum number of results to return
-        date_ranges (list): List of tuples with start and end dates for the search
-    Returns:
-        list: List of PubMed IDs
-    """
-    all_ids = []
+        date_ranges = [("1975/01/01", "2050/12/31")]
 
-    # Define date ranges to split the search
+    all_ids = set()
 
     for start_date, end_date in date_ranges:
         print(f"Searching for records from {start_date} to {end_date}")
@@ -44,10 +39,11 @@ def search_pubmed(query, max_results: int = None, date_ranges: list = None):
 
         chunk_ids = record["IdList"]
         print(f"Found {len(chunk_ids)} records in this date range")
-        all_ids.extend(chunk_ids)
+        all_ids.update(chunk_ids)
 
-    print(f"Total records found across all date ranges: {len(all_ids)}")
-    return all_ids[:max_results]  # Limit to max_results if needed
+    all_ids = list(all_ids)
+    print(f"Total unique records found across all date ranges: {len(all_ids)}")
+    return all_ids[:max_results] if max_results else all_ids
 
 
 # Fetch article details using PubMed IDs in batches
@@ -134,9 +130,14 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
                 authors = record.get("FAU", ["No authors available"])
                 if "No authors available" not in authors:
                     for author in authors:
-                        firstname = author.split(",")[1].strip()
-                        lastname = author.split(",")[0].strip()
-                        filtered_author_list.append(f"{firstname} {lastname}")
+                        parts = author.split(",")
+                        if len(parts) == 2:
+                            firstname = parts[1].strip()
+                            lastname = parts[0].strip()
+                            filtered_author_list.append(f"{firstname} {lastname}")
+                        else:
+                            filtered_author_list.append(author.strip())
+
                 affiliations = record.get("AD", ["No affiliations available"])
                 source = record.get("SO", "No source information")
                 pmid = record.get("PMID", "No PMID available")
@@ -185,8 +186,19 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
     print(f"Total records written to CSV: {record_count}")
 
 
+def generate_monthly_ranges(start_year: int, end_year: int):
+    date_ranges = []
+    for year in range(start_year, end_year + 1):
+        for month in range(1, 13):
+            start = datetime(year, month, 1)
+            # Avoid invalid months like 13
+            end = (start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+            date_ranges.append((start.strftime("%Y/%m/%d"), end.strftime("%Y/%m/%d")))
+    return date_ranges
+
+
 if __name__ == "__main__":
-    link = "https://pubmed.ncbi.nlm.nih.gov/?term=machine+learning+and+cancer+diagnosis+and+medicine&filter=years.2016-2025"
+    link = "https://pubmed.ncbi.nlm.nih.gov/?term=machine+learning+AND+cancer+diagnosis&filter=years.2022-2025"
 
     if "&filter=years" not in link:
         search_term = link.split("term=")[1].replace("+", " ")
@@ -204,10 +216,7 @@ if __name__ == "__main__":
     print(f"Search term: {search_term}")
     print(f"start_date {start_date}\nend_date {end_date}")
 
-    date_ranges = [
-        (f"{start_date}/01/01", f"{end_date}/12/31"),
-    ]
-    max_results = 1000
+    date_ranges = generate_monthly_ranges(int(start_date), int(end_date))
 
     pubmed_ids = search_pubmed(search_term, date_ranges=date_ranges)
     print(f"Searching with term '{search_term}'")
