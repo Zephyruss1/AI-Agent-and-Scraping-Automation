@@ -346,16 +346,30 @@ class SpringerScraper:
 
         # Wait for article list to load
         try:
-            await page.wait_for_selector(
-                'xpath=//*[@id="main"]/div/div/div/div[2]/div[3]/ol',
-                timeout=10000,
-            )
+            found = False
+            for i in range(1, 10):
+                article_list_xpath = (
+                    f'xpath=//*[@id="main"]/div/div/div/div[2]/div[{i}]/ol'
+                )
+                try:
+                    await page.wait_for_selector(
+                        article_list_xpath,
+                        timeout=10000,
+                    )
+                    print(f"✅ Found matching element at: {article_list_xpath}")
+                    found = True
+                    break
+                except Exception:
+                    continue
+            if not found:
+                print("❌ No matching element found.")
+
         except Exception as e:
             print(f"Failed to load article list: {e}")
             return False
 
         articles = await page.query_selector_all(
-            'xpath=//*[@id="main"]/div/div/div/div[2]/div[3]/ol/li',
+            article_list_xpath,
         )
 
         if not articles:
