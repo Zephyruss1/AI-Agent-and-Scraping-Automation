@@ -197,9 +197,7 @@ def generate_monthly_ranges(start_year: int, end_year: int):
     return date_ranges
 
 
-if __name__ == "__main__":
-    link = "https://pubmed.ncbi.nlm.nih.gov/?term=machine+learning+AND+cancer+diagnosis&filter=years.2022-2025"
-
+def main_run(link: str):
     if "&filter=years" not in link:
         search_term = link.split("term=")[1].replace("+", " ")
     else:
@@ -207,7 +205,7 @@ if __name__ == "__main__":
 
     if "years." not in link:
         print("No date range specified in the link. Using default date range.")
-        start_date = "1900"
+        start_date = "1975"
         end_date = "2050"
     else:
         start_date = link.split("years.")[1].split("-")[0]
@@ -228,3 +226,7 @@ if __name__ == "__main__":
         print(f"PubMed articles saved to '{CSV_FILE}'")
     else:
         print("No articles found.")
+
+
+if __name__ == "__main__":
+    main_run()
