@@ -18,6 +18,8 @@ from utils.app_utils import extract_proxy_format
 from arxiv_project.src import arxiv
 from sd_pm_ls_scraper.src import pubmed, sciencedirect, springer
 
+os.system("playwright install")
+
 
 def main():
     st.title("Research Article Scraper")
