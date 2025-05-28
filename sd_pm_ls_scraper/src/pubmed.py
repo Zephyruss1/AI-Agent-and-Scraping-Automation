@@ -2,7 +2,6 @@ import csv
 import os
 import tempfile
 import time
-from datetime import datetime, timedelta
 
 from Bio import Entrez, Medline
 from dotenv import load_dotenv
@@ -15,12 +14,12 @@ Entrez.api_key = os.getenv("NCBI_API_KEY")
 # Directory to save PDFs
 PDF_DIR = os.path.join(tempfile.gettempdir(), "output")
 os.makedirs(PDF_DIR, exist_ok=True)
-CSV_FILE = "output/pubmed_results.csv"
+CSV_FILE = "pubmed_results.csv"
 
 
 def search_pubmed(query, max_results=None, date_ranges=None):
     if not date_ranges:
-        date_ranges = [("1975/01/01", "2050/12/31")]
+        date_ranges = [("1975/01/01", "2025/12/31")]
 
     all_ids = set()
 
@@ -185,14 +184,10 @@ def save_articles_to_csv(records, _keyword: str, filename=CSV_FILE):
     print(f"Total records written to CSV: {record_count}")
 
 
-def generate_monthly_ranges(start_year: int, end_year: int):
+def generate_yearly_ranges(start_year: int, end_year: int):
     date_ranges = []
     for year in range(start_year, end_year + 1):
-        for month in range(1, 13):
-            start = datetime(year, month, 1)
-            # Avoid invalid months like 13
-            end = (start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-            date_ranges.append((start.strftime("%Y/%m/%d"), end.strftime("%Y/%m/%d")))
+        date_ranges.append((f"{year}/01/01", f"{year}/12/31"))
     return date_ranges
 
 
@@ -204,8 +199,8 @@ def main_run(link: str):
 
     if "years." not in link:
         print("No date range specified in the link. Using default date range.")
-        start_date = "1975"
-        end_date = "2050"
+        start_date = "2020"
+        end_date = "2025"
     else:
         start_date = link.split("years.")[1].split("-")[0]
         end_date = link.split("years.")[1].split("-")[1]
@@ -213,7 +208,7 @@ def main_run(link: str):
     print(f"Search term: {search_term}")
     print(f"start_date {start_date}\nend_date {end_date}")
 
-    date_ranges = generate_monthly_ranges(int(start_date), int(end_date))
+    date_ranges = generate_yearly_ranges(int(start_date), int(end_date))
 
     pubmed_ids = search_pubmed(search_term, date_ranges=date_ranges)
     print(f"Searching with term '{search_term}'")
@@ -228,4 +223,4 @@ def main_run(link: str):
 
 
 if __name__ == "__main__":
-    main_run()
+    main_run("https://pubmed.ncbi.nlm.nih.gov/?term=machine+learning+AND+CFU")
