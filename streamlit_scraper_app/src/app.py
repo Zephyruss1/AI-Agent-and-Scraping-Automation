@@ -3,6 +3,7 @@ import io
 import json
 import os
 import random
+import shutil
 import subprocess
 import sys
 import zipfile
@@ -154,14 +155,24 @@ def main():
         if springer_link:
             with st.spinner("Scraping Springer..."):
                 script_path = os.path.abspath(__file__)
-                cmd = [
-                    "xvfb-run",
-                    "-a",
-                    sys.executable,
-                    script_path,
-                    "--springer",
-                    springer_link,
-                ]
+                use_xvfb = shutil.which("xvfb-run") is not None
+                print(f"use_xvfb: {use_xvfb}")
+                if use_xvfb:
+                    cmd = [
+                        "xvfb-run",
+                        "-a",
+                        sys.executable,
+                        script_path,
+                        "--springer",
+                        springer_link,
+                    ]
+                else:
+                    cmd = [
+                        sys.executable,
+                        script_path,
+                        "--springer",
+                        springer_link,
+                    ]
 
                 # Add proxy argument if available
                 if random_proxy_for_springer:
