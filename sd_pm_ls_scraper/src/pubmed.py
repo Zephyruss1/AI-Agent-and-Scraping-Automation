@@ -1,5 +1,6 @@
 import csv
 import os
+import tempfile
 import time
 from datetime import datetime, timedelta
 
@@ -12,7 +13,7 @@ Entrez.email = "your.email@example.com"
 Entrez.api_key = os.getenv("NCBI_API_KEY")
 
 # Directory to save PDFs
-PDF_DIR = "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output"
+PDF_DIR = os.path.join(tempfile.gettempdir(), "output")
 os.makedirs(PDF_DIR, exist_ok=True)
 CSV_FILE = (
     "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pubmed_results.csv"
