@@ -617,7 +617,7 @@ async def async_springer(link: str, proxies: Optional[Dict[str, str]] = None) ->
             start_date=start_date,
             end_date=end_date,
         )
-        browser = await pw.chromium.launch(headless=False, args=args, proxy=proxies)
+        browser = await pw.chromium.launch(headless=True, args=args, proxy=proxies)
         context = await browser.new_context(viewport={"width": 1280, "height": 720})
         page = await context.new_page()
         try:
