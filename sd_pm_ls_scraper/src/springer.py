@@ -40,6 +40,7 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> str:
     try:
         import csv
         import os
+        import tempfile
     except ImportError as err:
         raise ImportError(
             "    ❌ [ERROR] Could not import the csv module. "
@@ -50,9 +51,8 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> str:
         print("     [INFO] No results to save!")
         return None
 
-    # Get current script directory and set paths relative to it
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(current_dir, "..", "output")
+    # Use a temp directory to avoid permission issues
+    output_dir = os.path.join(tempfile.gettempdir(), "output")
     file_name = os.path.join(output_dir, "springer_results.csv")
 
     # Ensure output directory exists

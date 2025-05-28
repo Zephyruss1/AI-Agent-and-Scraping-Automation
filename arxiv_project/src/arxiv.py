@@ -2,6 +2,7 @@ import asyncio
 import concurrent.futures
 import os
 import subprocess
+import tempfile
 from typing import Dict, List, Optional
 
 import aiohttp
@@ -23,7 +24,7 @@ def _save_excel(author_list: List[Dict], link: str) -> Optional[str]:
         return None
 
     # Define output paths
-    output_dir = "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output"
+    output_dir = os.path.join(tempfile.gettempdir(), "output")
     output_file = os.path.join(output_dir, "arxiv_results.xlsx")
 
     try:

@@ -1,5 +1,6 @@
 import csv
 import os
+import tempfile
 import time
 
 import requests
@@ -114,10 +115,11 @@ def make_request(
 
 def save_csv(results: list, _keyword: str) -> None:
     if results:
-        os.makedirs(
-            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output",
-            exist_ok=True,
+        output_dir = os.path.join(
+            tempfile.gettempdir(),
+            "AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output",
         )
+        os.makedirs(output_dir, exist_ok=True)
 
         headers = [
             "Title",
