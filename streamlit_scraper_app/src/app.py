@@ -187,7 +187,7 @@ def main():
             "arxiv_project/output/arxiv_results.xlsx",
             "sd_pm_ls_scraper/output/pubmed_results.csv",
             "sd_pm_ls_scraper/output/sciencedirect_results.csv",
-            "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/springer_results.csv",
+            "sd_pm_ls_scraper/output/springer_results.csv",
         ]
 
         # Create an in-memory zip file
