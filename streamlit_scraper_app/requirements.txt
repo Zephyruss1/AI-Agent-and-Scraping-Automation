@@ -1,0 +1,7 @@
+beautifulsoup4
+biopython
+lxml
+pandas
+python-dotenv
+requests
+streamlit
