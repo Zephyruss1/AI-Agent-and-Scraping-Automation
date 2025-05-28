@@ -15,9 +15,7 @@ Entrez.api_key = os.getenv("NCBI_API_KEY")
 # Directory to save PDFs
 PDF_DIR = os.path.join(tempfile.gettempdir(), "output")
 os.makedirs(PDF_DIR, exist_ok=True)
-CSV_FILE = (
-    "/root/AI-Agent-and-Scraping-Automation/sd_pm_ls_scraper/output/pubmed_results.csv"
-)
+CSV_FILE = "output/pubmed_results.csv"
 
 
 def search_pubmed(query, max_results=None, date_ranges=None):
