@@ -494,7 +494,7 @@ async def async_main_run(link: str, proxies: Optional[Dict[str, str]] = None):
         await arxiv_scraper.connect_to_arxiv_and_search()
 
         # Step 2: Get paper IDs (use max_pages_DEBUG_MODE=1 for testing)
-        await arxiv_scraper.get_paper_ids(max_pages_DEBUG_MODE=1)
+        await arxiv_scraper.get_paper_ids()
 
         # Step 3: Get author details
         await arxiv_scraper.get_author_details()
@@ -506,7 +506,7 @@ async def async_main_run(link: str, proxies: Optional[Dict[str, str]] = None):
         await arxiv_scraper.get_related_paper_details()
 
         # step 6: Save the scraped details to an Excel file
-        # excel_path = _save_excel(arxiv_scraper.papers, arxiv_scraper.link)
+        _save_excel(arxiv_scraper.papers, arxiv_scraper.link)
 
         # # Step 7: Download PDFs
         # if excel_path:
@@ -516,6 +516,9 @@ async def async_main_run(link: str, proxies: Optional[Dict[str, str]] = None):
         #     await download_pdf.start_download()
         # else:
         #     print("     ❌ [ERROR] Excel file not created, skipping PDF download.")
+
+        await browser.close()
+        await browser.close()
 
 
 if __name__ == "__main__":
