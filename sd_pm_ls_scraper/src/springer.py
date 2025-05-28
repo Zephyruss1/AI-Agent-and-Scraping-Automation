@@ -1,6 +1,6 @@
 import asyncio
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 from playwright.async_api import async_playwright
@@ -36,74 +36,51 @@ def _load_csv(csv_filepath: str):
 
 
 async def _save_to_csv(results: List[Dict], _keyword: str) -> str:
-    """Save scraped Springer search results to a CSV file.
-
-    Writes a list of article dictionaries to a CSV file located at a fixed path, including
-    headers and the provided keyword as an additional column. Handles empty results and
-    missing CSV module gracefully.
-
-    Args:
-        results (List[Dict]): A list of dictionaries containing article details. Each dictionary
-            should have keys like 'Title', 'Link', 'Description', 'Authors', and 'Date'.
-            Missing keys default to 'null'.
-        _keyword (str): The search keyword used to generate the results, added to each row.
-
-    Returns:
-        None: The function writes to a file and does not return a value.
-
-    Raises:
-        ImportError: If the `csv` module cannot be imported, with a descriptive message.
-        Exception: If an error occurs during file writing, with details about the failure.
-
-    Notes:
-        - The output file is hardcoded to '/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_tests.csv'.
-        - Uses UTF-8 encoding to support special characters in article data.
-        - Prints success or info messages to the console for user feedback.
-        - Asynchronous function, though it performs synchronous I/O operations.
-    """
+    """Save scraped Springer search results to a CSV file."""
     try:
         import csv
+        import os
     except ImportError as err:
-        raise ImportError("csv module not found!") from err
+        raise ImportError(
+            "    ❌ [ERROR] Could not import the csv module. "
+            "Please ensure it is installed in your Python environment.",
+        ) from err
 
     if not results:
         print("     [INFO] No results to save!")
-        return
+        return None
 
-    headers = [
-        "Title",
-        "Link",
-        "DOI",
-        "Description",
-        "Authors",
-        "Date",
-        "Keyword",
-    ]
+    # Get current script directory and set paths relative to it
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(current_dir, "..", "output")
+    file_name = os.path.join(output_dir, "springer_results.csv")
 
-    # Check if the file already exists and handle duplicates
-    file_name = "/root/arxiv-and-scholar-scraping/sd_pm_ls_scraper/output/springer_results_tests.csv"
-    file_name = await _handle_duplicate_csv_filenames(file_name)
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
 
-    # Open the file and write the headers and rows
     try:
-        with open(
-            file_name,
-            "a",
-            newline="",
-            encoding="utf-8",
-        ) as f:
+        with open(file_name, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(headers)  # Write the headers
 
+            # Write headers only if file is empty
+            if os.path.getsize(file_name) == 0:
+                writer.writerow(
+                    [
+                        "Title",
+                        "Link",
+                        "DOI",
+                        "Description",
+                        "Authors",
+                        "Date",
+                        "Keyword",
+                    ],
+                )
+
+            # Write article data
             for result in results:
-                # Extract DOI safely
                 link = result.get("link", "null")
-                doi = "null"
-                if "article/" in link:
-                    try:
-                        doi = link.split("article/")[1]
-                    except IndexError:
-                        doi = "null"
+                doi = link.split("article/")[1] if "article/" in link else "null"
+
                 writer.writerow(
                     [
                         result.get("title", "null"),
@@ -115,14 +92,21 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> str:
                         _keyword,
                     ],
                 )
-        print(
-            f"✅ Successfully wrote {len(results)} results to output/springer_results_tests.csv",
-        )
+
+        print(f"✅ Successfully wrote {len(results)} results to {file_name}")
+
+        # Verify file was created successfully
+        if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
+            print(f"📄 CSV file saved at: {file_name}")
+            print(f"📊 File size: {os.path.getsize(file_name)} bytes")
+            return file_name
+        else:
+            print("❌ Warning: CSV file may not have saved properly")
+            return None
+
     except Exception as err:
-        raise Exception(
-            f"    ❌ [ERROR] An error occurred while saving Excel file: {err}",
-        ) from err
-    return file_name
+        print(f"❌ Error saving CSV: {err}")
+        return None
 
 
 class SpringerScraper:
@@ -135,24 +119,21 @@ class SpringerScraper:
 
     def __init__(
         self,
-        keyword: str,
+        link: str,
         max_results: int = None,
         start_date: str = None,
         end_date: str = None,
     ):
         """
-        Initializes a SpringerScraper instance with a keyword and constructs the search URL.
+        Initializes a SpringerScraper instance with a link and constructs the search URL.
 
         Args:
-            keyword (str): The search term to query Springer for articles. Spaces are replaced with '+'
-                           to form a valid URL query parameter.
+            link (str): The link to the Springer search results page.
             max_results (int, optional): Maximum number of results to scrape.
         """
         self.start_date = start_date if start_date else ""
         self.end_date = end_date if end_date else ""
-        self.keyword = keyword.replace(" ", "+") if " " in keyword else keyword
-        self.base_url = "https://link.springer.com/search"
-        self.url = f"{self.base_url}?new-search=true&query={self.keyword}&content-type=research&content-type=article&dateFrom={self.start_date}&dateTo={self.end_date}&sortBy=relevance"
+        self.url = link
         self.articles = []
         self.page = None
         self.max_results = max_results
@@ -279,12 +260,6 @@ class SpringerScraper:
                         print(
                             f"     [INFO] Discipline name {discipline_name} selected.",
                         )
-                        # ---------------START OF DEBUG--------------------
-                        await page.evaluate(
-                            "scrollTo(0, 1200);",
-                        )  # Scroll to the top of the page
-                        await page.screenshot(path="discipline_selector_debug.png")
-                        # ---------------END OF DEBUG--------------------
                     except Exception as e:
                         print(
                             f"     ❌ [INFO] Error clicking discipline {start_index + 1}: {e}",
@@ -344,121 +319,106 @@ class SpringerScraper:
 
         await page.wait_for_load_state("networkidle")
 
-        # Wait for article list to load
         try:
-            found = False
-            for i in range(1, 10):
-                article_list_xpath = (
-                    f'xpath=//*[@id="main"]/div/div/div/div[2]/div[{i}]/ol'
+            # Wait for the main article container - using the correct data-test attribute
+            await page.wait_for_selector('[data-test="darwin-search"]', timeout=10000)
+
+            # Get all article elements directly using the list selector
+            articles = await page.query_selector_all(
+                'ol[data-test="darwin-search"] > li',
+            )
+
+            if not articles:
+                print(
+                    "No articles found. Check if the selector is correct or if content is loaded.",
                 )
-                try:
-                    await page.wait_for_selector(
-                        article_list_xpath,
-                        timeout=10000,
-                    )
-                    print(f"✅ Found matching element at: {article_list_xpath}")
-                    found = True
+                return False
+
+            print(f"Found {len(articles)} articles on this page")
+            new_articles_found = False
+
+            for article in articles:
+                # Stop if max results is reached
+                if self.max_results and len(self.articles) >= self.max_results:
                     break
-                except Exception:
+
+                try:
+                    # Extract title and link
+                    title_link_element = await article.query_selector("h3 a")
+                    if not title_link_element:
+                        continue
+
+                    # Extract the link and validate it
+                    title_link = await title_link_element.get_attribute("href")
+                    if title_link:
+                        if not title_link.startswith("http"):
+                            title_link = f"https://link.springer.com{title_link}"
+
+                        # Skip if the link is already scraped
+                        if title_link in self.unique_links:
+                            continue
+
+                        full_link = title_link
+                    else:
+                        continue
+
+                    # Extract title
+                    title = await title_link_element.text_content()
+
+                    # Extract description
+                    description_element = await article.query_selector(
+                        "p.c-card__description",
+                    )
+                    description = (
+                        await description_element.text_content()
+                        if description_element
+                        else "No description found"
+                    )
+
+                    # Extract authors
+                    authors_element = await article.query_selector(
+                        ".c-card__section-header",
+                    )
+                    authors = (
+                        await authors_element.text_content()
+                        if authors_element
+                        else "No authors found"
+                    )
+                    authors = re.sub(r"\s+in\s.*$", "", authors)
+                    authors = authors.replace("...", "").strip()
+
+                    # Extract published date
+                    date_element = await article.query_selector(
+                        'span.c-meta__item[data-test="published"]',
+                    )
+                    published_date = (
+                        await date_element.text_content()
+                        if date_element
+                        else "No published date found"
+                    )
+
+                    # Add article and track unique link
+                    article_info = {
+                        "title": title.strip(),
+                        "link": full_link,
+                        "description": description.strip(),
+                        "authors": authors.strip(),
+                        "published_date": published_date.strip(),
+                    }
+
+                    self.articles.append(article_info)
+                    self.unique_links.add(full_link)
+                    new_articles_found = True
+
+                except Exception as e:
+                    print(f"Error processing article: {e}")
                     continue
-            if not found:
-                print("❌ No matching element found.")
+
+            return new_articles_found
 
         except Exception as e:
             print(f"Failed to load article list: {e}")
             return False
-
-        articles = await page.query_selector_all(
-            article_list_xpath,
-        )
-
-        if not articles:
-            print(
-                "No articles found. Check if the selector is correct or if content is loaded.",
-            )
-            return False
-
-        print(f"Found {len(articles)} articles on this page")
-        new_articles_found = False
-        for i, article in enumerate(articles):
-            # Stop if max results is reached
-            if self.max_results and len(self.articles) >= self.max_results:
-                break
-
-            try:
-                # Extract article details inside the for loop in searching_and_gathering_papers function
-                title_link_element = await article.query_selector("xpath=.//div/h3/a")
-                if not title_link_element:
-                    continue
-
-                # Extract the link and validate it
-                title_link = await title_link_element.get_attribute("href")
-                if title_link:
-                    # Ensure the link is properly formed by checking if it starts with '/'
-                    if not title_link.startswith("http"):
-                        title_link = f"https://link.springer.com{title_link}"
-
-                    # Skip if the link is already scraped (to avoid duplicates)
-                    if title_link in self.unique_links:
-                        continue
-
-                    # Proceed with the valid, unique link
-                    full_link = title_link
-                else:
-                    print("Skipping article with missing href attribute.")
-                    continue
-
-                # Extract other details
-                title_element = await article.query_selector("xpath=.//div/h3")
-                title = (
-                    await title_element.text_content()
-                    if title_element
-                    else "No title found"
-                )
-
-                description_element = await article.query_selector("xpath=.//div/p")
-                description = (
-                    await description_element.text_content()
-                    if description_element
-                    else "No description found"
-                )
-
-                authors_element = await article.query_selector(
-                    "xpath=.//div/div[3]/div",
-                )
-                authors = (
-                    await authors_element.text_content()
-                    if authors_element
-                    else "No authors found"
-                )
-                authors = re.sub(r"\s+in\s.*$", "", authors)
-                authors = authors.replace("...", "").strip()
-                published_date_element = await article.query_selector(
-                    "xpath=.//div/div[4]/div/span[1]",
-                )
-                published_date = (
-                    await published_date_element.text_content()
-                    if published_date_element
-                    else "No published date found"
-                )
-
-                # Add article and track unique link
-                article_info = {
-                    "title": title.strip(),
-                    "link": full_link,
-                    "description": description.strip(),
-                    "authors": authors.strip(),
-                    "published_date": published_date.strip(),
-                }
-
-                self.articles.append(article_info)
-                self.unique_links.add(full_link)
-                new_articles_found = True
-
-            except Exception as e:
-                print(f"Error processing article {i}: {e}")
-
-        return new_articles_found
 
     async def pagination(self, page, max_pages: int = None) -> bool:
         """
@@ -532,85 +492,132 @@ class SpringerScraper:
         csv_file_path: str,
     ) -> None:
         """Extract affiliations and full names from the Springer article page."""
-        # Check cookies only once
 
-        _csv_file = _load_csv(csv_file_path)
-        _csv_file.drop_duplicates(inplace=True)
-        print("\n📍 Step 3: Extracting affiliations and full names!")
+        try:
+            _csv_file = _load_csv(csv_file_path)
+            _csv_file.drop_duplicates(inplace=True)
+            print("\n📍 Step 3: Extracting affiliations and full names!")
 
-        for _index, row in _csv_file.iterrows():
-            paper_link = row["Link"]
-            await page.goto(paper_link)
-            print(f"    [INFO] Navigating to paper: {paper_link}")
-            # await page.wait_for_load_state("networkidle") # FIXME: Having issue with this line about timeout...
-            try:
+            for _index, row in _csv_file.iterrows():
+                paper_link = row["Link"]
                 try:
-                    await page.wait_for_selector(
-                        'xpath=//*[@id="affiliations"]',
+                    # Add navigation timeout and options
+                    await page.goto(
+                        paper_link,
                         timeout=10000,
+                        wait_until="domcontentloaded",
                     )
-                except Exception as e:
-                    print(f"Failed to find affiliations section in page: {e}")
-                    continue
-                # retrieve affiliations full list
-                affiliations = await page.query_selector_all(
-                    'xpath=//*[@id="Aff1"]/p[1]',
-                )
+                    print(f"    [INFO] Navigating to paper: {paper_link}")
 
-                # reitrieve authors full list
-                authors = await page.query_selector_all(
-                    '//ul[contains(@class, "c-article-author-list")]//li//a',
-                )
+                    # Add small delay for content loading
+                    await page.wait_for_timeout(2000)
 
-                try:
-                    for affiliation in affiliations:
-                        print("affiliations:", await affiliation.text_content())
-                        _csv_file.at[_index, "Affiliations"] = (
-                            f"{await affiliation.text_content()}."
+                    affiliations = []
+                    authors_list = []
+
+                    # Try to get affiliations (if fails, continue with empty list)
+                    try:
+                        await page.wait_for_selector(
+                            'xpath=//*[@id="affiliations"]',
+                            timeout=5000,
+                        )
+                        affiliations = await page.query_selector_all(
+                            'xpath=//*[@id="Aff1"]/p[1]',
+                        )
+                    except Exception:
+                        print(f"    ⚠️ No affiliations found for: {paper_link}")
+
+                    # Try to get authors (if fails, continue with empty list)
+                    try:
+                        authors = await page.query_selector_all(
+                            '//ul[contains(@class, "c-article-author-list")]//li//a',
                         )
 
-                    authors_list = []
-                    for author in authors:
-                        author_text = await author.text_content()
-                        if (
-                            author_text.startswith(("nAff", "na", "ORCID"))
-                            or len(author_text) <= 2
-                        ):
-                            continue
-                        print("authors:", author_text.replace("&", ",").strip())
-                        authors_list.append(author_text.replace("&", ",").strip())
+                        for author in authors:
+                            author_text = await author.text_content()
+                            if (
+                                not author_text.startswith(("nAff", "na", "ORCID"))
+                                and len(author_text) > 2
+                            ):
+                                authors_list.append(
+                                    author_text.replace("&", ",").strip(),
+                                )
+                    except Exception:
+                        print(f"    ⚠️ No authors found for: {paper_link}")
 
-                    _csv_file.at[_index, "Authors"] = ", ".join(authors_list)
+                    # Update CSV with whatever data we found
+                    if affiliations:
+                        affil_texts = []
+                        for affiliation in affiliations:
+                            try:
+                                affil_text = await affiliation.text_content()
+                                affil_texts.append(affil_text.strip())
+                            except Exception:
+                                continue
+                        if affil_texts:
+                            _csv_file.at[_index, "Affiliations"] = "; ".join(
+                                affil_texts,
+                            )
+                            print(f"    ✅ Added {len(affil_texts)} affiliations")
+
+                    if authors_list:
+                        _csv_file.at[_index, "Authors"] = ", ".join(authors_list)
+                        print(f"    ✅ Added {len(authors_list)} authors")
+
                     print("---" * 30)
+
                 except Exception as e:
-                    print(f"Error extracting affiliations or authors: {e}")
+                    print(f"    ⚠️ Error processing {paper_link}: {str(e)}")
                     continue
-            except Exception as e:
-                print(f"Error extracting affiliations and authors: {e}")
-                continue
-            finally:
+
+                # Save progress after each article
+                if _index % 10 == 0:  # Save every 10 articles
+                    try:
+                        _csv_file.to_csv(csv_file_path, index=False)
+                        print(f"    💾 Progress saved at article {_index + 1}")
+                    except Exception as save_err:
+                        print(f"    ⚠️ Error saving progress: {str(save_err)}")
+
+            # Final save
+            try:
                 _csv_file.to_csv(csv_file_path, index=False)
+                print("    💾 Final save completed")
+            except Exception as final_save_err:
+                print(f"    ⚠️ Error during final save: {str(final_save_err)}")
+
+        except Exception as e:
+            print(f"    ❌ Critical error in extraction process: {str(e)}")
 
 
-async def async_springer():
+async def async_springer(link: str, proxies: Optional[Dict[str, str]] = None) -> None:
     args = [
         "--no-sandbox",
         "--disable-blink-features=AutomationControlled",
         "--disable-infobars",
     ]
-    search_term = '(CFU OR "colony forming unit" OR "colony counting") AND ("automated imaging" OR "image analysis" OR "colony counter" OR "colony detection" OR "machine learning" OR robotics)'
-    start_date = "2012"
-    end_date = "2025"
+    if "dateFrom=" in link and "dateTo=" in link:
+        start_date = link.split("dateFrom=")[1].split("&")[0]
+        end_date = link.split("dateTo=")[1].split("&")[0]
+        # Set defaults if empty
+        if not start_date:
+            start_date = "1975"
+        if not end_date:
+            end_date = "2025"
+        print(start_date)
+        print(end_date)
+    else:
+        start_date = "1975"
+        end_date = "2025"
 
     async with async_playwright() as pw:
         # In async_springer function
         SpringerScraper_obj = SpringerScraper(
-            search_term,
+            link=link,
             max_results=None,
             start_date=start_date,
             end_date=end_date,
         )
-        browser = await pw.chromium.launch(headless=False, args=args)
+        browser = await pw.chromium.launch(headless=False, args=args, proxy=proxies)
         context = await browser.new_context(viewport={"width": 1280, "height": 720})
         page = await context.new_page()
         try:
@@ -629,13 +636,13 @@ async def async_springer():
                     for current_start_date in range(
                         int(start_date),
                         int(end_date),
-                        step=2,
+                        2,
                     ):
                         current_end_date = current_start_date + 1
                         print(f"{current_start_date} - {current_end_date}")
 
                         SpringerScraper_obj = SpringerScraper(
-                            search_term,
+                            link=link,
                             max_results=None,
                             start_date=current_start_date,
                             end_date=current_end_date,
@@ -648,9 +655,27 @@ async def async_springer():
                         print(
                             f"     [INFO] [Step-2] Checking total results: {total_results}",
                         )
-                        if total_results > 1000:
+                        if 1000 < total_results <= 2000:
                             print(
                                 f"     ✅ [INFO] [Step-2] After filtering range years total results ({total_results}) are greater than 1000. "
+                                "Proceeding with scrape old --> new, new --> old.",
+                            )
+                            # Scrape both newest first and oldest first sorting
+                            for sort_order in ["newestFirst", "oldestFirst"]:
+                                sorted_url = page.url.replace(
+                                    "sortBy=relevance",
+                                    f"sortBy={sort_order}",
+                                )
+                                await page.goto(sorted_url)
+                                await SpringerScraper_obj.pagination(page)
+                            page = page.url.replace(
+                                f"sortBy={sort_order}",
+                                "sortBy=relevance",
+                            )
+
+                        elif total_results > 2000:
+                            print(
+                                f"     ✅ [INFO] [Step-3] After filtering range years total results ({total_results}) are greater than 1000. "
                                 "Proceeding with complex filtering.",
                             )
                             len_of_disciplines = (
@@ -726,13 +751,18 @@ async def async_springer():
             try:
                 springer_file_path = await _save_to_csv(
                     SpringerScraper_obj.articles,
-                    _keyword=search_term,
+                    _keyword=link,
                 )
-                # Process affiliations only if articles were found
-                await SpringerScraper_obj.extract_affiliations_and_full_names(
-                    page,
-                    springer_file_path,
-                )
+                if springer_file_path:
+                    # Process affiliations only if articles were found and CSV was saved
+                    await SpringerScraper_obj.extract_affiliations_and_full_names(
+                        page,
+                        springer_file_path,
+                    )
+                else:
+                    print(
+                        "No articles found. CSV not saved, skipping affiliation extraction.",
+                    )
             except Exception as affil_err:
                 print(f"Error extracting affiliations: {affil_err}")
                 # Continue despite affiliation extraction errors
@@ -741,4 +771,8 @@ async def async_springer():
 
 
 if __name__ == "__main__":
-    asyncio.run(async_springer())
+    asyncio.run(
+        async_springer(
+            link="https://link.springer.com/search?new-search=true&query=machine+learning+AND+micro+biolog&dateFrom=&dateTo=&sortBy=relevance",
+        ),
+    )
