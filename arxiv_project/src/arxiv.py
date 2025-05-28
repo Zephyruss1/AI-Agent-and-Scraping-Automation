@@ -16,46 +16,51 @@ async def _load_excel(filename: str):
     return ws
 
 
-def _save_excel(author_list: List[Dict], link: str) -> None:
+def _save_excel(author_list: List[Dict], link: str) -> Optional[str]:
+    """Save data to Excel and return the path to the saved file"""
     if not author_list:
         print("     [INFO] No author details found!")
-        return
+        return None
 
-    wb = Workbook()
-    ws = wb.active
-    ws.append(
-        [
-            "Author",
-            "AuthorID",
-            "PaperID",
-            "LastPaperLink",
-            "AmountOfMentions",
-            "Keyword",
-        ],
-    )
-
-    for author in author_list:
-        ws.append(
-            [
-                author.get("Author", "null"),
-                author.get("AuthorID", "null"),
-                author.get("PaperID", "null"),
-                author.get("LastPaperLink", "null"),
-                author.get("AmountOfMentions", "null"),
-                link,
-            ],
-        )
+    # Define output paths
+    output_dir = "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output"
+    output_file = os.path.join(output_dir, "arxiv_results.xlsx")
 
     try:
         # Ensure the output directory exists
-        output_dir = "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output"
         os.makedirs(output_dir, exist_ok=True)
-        # Save to a file, not a directory!
-        output_file = os.path.join(output_dir, "arxiv_scraped_data.xlsx")
+
+        wb = Workbook()
+        ws = wb.active
+        ws.append(
+            [
+                "Author",
+                "AuthorID",
+                "PaperID",
+                "LastPaperLink",
+                "AmountOfMentions",
+                "Keyword",
+            ],
+        )
+
+        for author in author_list:
+            ws.append(
+                [
+                    author.get("Author", "null"),
+                    author.get("AuthorID", "null"),
+                    author.get("PaperID", "null"),
+                    author.get("LastPaperLink", "null"),
+                    author.get("AmountOfMentions", "null"),
+                    link,
+                ],
+            )
+
         wb.save(output_file)
         print("    ✅ [INFO] Details successfully saved to Excel!")
+        return output_file
     except Exception as e:
         print(f"    ❌ [ERROR] An error occurred while saving Excel file: {e}")
+        return None
 
 
 class ArxivScraper:
@@ -432,7 +437,7 @@ class DownloadPDF:
         """Start downloading PDFs with rate limiting consideration."""
         print("\n📍 Step 6: Downloading PDFs!")
         ws = await _load_excel(
-            filename="/root/AI-Agent-and-Scraping-Automation/arxiv_project/output/arxiv_scraped_data.xlsx",
+            filename=self.excel_path,
         )
 
         if not ws:
@@ -455,7 +460,7 @@ class DownloadPDF:
                     print(f"    ❌ [ERROR] {pdf_url}: Thread error - {e}")
 
 
-async def async_main():
+async def async_main_run(link: str, proxies: Optional[Dict[str, str]] = None):
     async with async_playwright() as pw:
         args = [
             "--no-sandbox",
@@ -474,13 +479,13 @@ async def async_main():
             # '--window-size=1280,1000',
         ]
 
-        browser = await pw.chromium.launch(headless=True, args=args)
+        browser = await pw.chromium.launch(headless=True, args=args, proxy=proxies)
         context = await browser.new_context(viewport={"width": 1280, "height": 720})
         page = await context.new_page()
 
         # Create the ArxivScraper instance and assign the open page
         arxiv_scraper = ArxivScraper(
-            link="https://arxiv.org/search/advanced?advanced=1&terms-0-operator=AND&terms-0-term=machine+learning&terms-0-field=title&terms-1-operator=AND&terms-1-term=biology&terms-1-field=title&classification-computer_science=y&classification-physics_archives=all&classification-include_cross_list=include&date-year=&date-filter_by=date_range&date-from_date=2012-02-01&date-to_date=2025-01-01&date-date_type=submitted_date&abstracts=show&size=50&order=-announced_date_first",
+            link=link,
         )
         arxiv_scraper.page = page
 
@@ -500,14 +505,21 @@ async def async_main():
         await arxiv_scraper.get_related_paper_details()
 
         # step 6: Save the scraped details to an Excel file
-        _save_excel(arxiv_scraper.papers, arxiv_scraper.link)
+        # excel_path = _save_excel(arxiv_scraper.papers, arxiv_scraper.link)
 
-        # Step 7: Download PDFs
-        download_pdf = DownloadPDF(
-            "/root/AI-Agent-and-Scraping-Automation/arxiv_project/output",
-        )
-        await download_pdf.start_download()
+        # # Step 7: Download PDFs
+        # if excel_path:
+        #     download_pdf = DownloadPDF(
+        #         excel_path=excel_path,
+        #     )
+        #     await download_pdf.start_download()
+        # else:
+        #     print("     ❌ [ERROR] Excel file not created, skipping PDF download.")
 
 
 if __name__ == "__main__":
-    asyncio.run(async_main())
+    asyncio.run(
+        async_main_run(
+            link="https://arxiv.org/search/?query=machine+learning+AND+biology&searchtype=all&source=header",
+        ),
+    )
