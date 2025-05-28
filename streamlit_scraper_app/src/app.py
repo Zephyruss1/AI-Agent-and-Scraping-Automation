@@ -186,10 +186,10 @@ def main():
         # Download 4 unique files in one button as a zip
         # Define your 4 unique file paths
         file_paths = [
-            "arxiv_project/output/arxiv_results.xlsx",
-            "sd_pm_ls_scraper/output/pubmed_results.csv",
-            "sd_pm_ls_scraper/output/sciencedirect_results.csv",
-            "sd_pm_ls_scraper/output/springer_results.csv",
+            "/tmp/output/arxiv_results.xlsx",
+            "/tmp/output/pubmed_results.csv",
+            "/tmp/output/sciencedirect_results.csv",
+            "/tmp/output/springer_results.csv",
         ]
 
         # Create an in-memory zip file
