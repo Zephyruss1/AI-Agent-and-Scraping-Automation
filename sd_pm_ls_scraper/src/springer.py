@@ -59,7 +59,7 @@ async def _save_to_csv(results: List[Dict], _keyword: str) -> str:
     os.makedirs(output_dir, exist_ok=True)
 
     try:
-        with open(file_name, "a", newline="", encoding="utf-8") as f:
+        with open(file_name, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
 
             # Write headers only if file is empty
