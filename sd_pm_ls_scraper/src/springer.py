@@ -486,107 +486,148 @@ class SpringerScraper:
         )
         return found_any_articles
 
-    async def extract_affiliations_and_full_names(
-        self,
-        page,
+    def extract_affiliations_and_full_names_fast(
         csv_file_path: str,
+        max_workers: int = 5,
     ) -> None:
-        """Extract affiliations and full names from the Springer article page."""
+        import random
+        import time
+
+        import pandas as pd
+        import requests
+        from bs4 import BeautifulSoup
+
+        """Fast version with threading for concurrent processing."""
+
+        import concurrent.futures
+
+        def process_single_article(session, paper_link, index):
+            """Process a single article and return results."""
+            try:
+                time.sleep(random.uniform(0.5, 2))  # Shorter delay for threading
+
+                response = session.get(paper_link, timeout=10)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.content, "html.parser")
+
+                # Extract affiliations
+                affiliations = []
+                affil_selectors = [
+                    "#affiliations #Aff1 p",
+                    '[id*="Aff"] p',
+                    ".c-article-author-affiliation",
+                ]
+                for selector in affil_selectors:
+                    elements = soup.select(selector)
+                    if elements:
+                        affiliations = [
+                            elem.get_text(strip=True)
+                            for elem in elements
+                            if elem.get_text(strip=True)
+                        ]
+                        break
+
+                # Extract authors
+                authors = []
+                author_selectors = [
+                    "ul.c-article-author-list li a",
+                    ".c-article-author-list a",
+                    'a[href*="/author/"]',
+                ]
+                for selector in author_selectors:
+                    elements = soup.select(selector)
+                    if elements:
+                        authors = [
+                            elem.get_text(strip=True).replace("&", ",").strip()
+                            for elem in elements
+                            if elem.get_text(strip=True)
+                            and len(elem.get_text(strip=True)) > 2
+                            and not elem.get_text(strip=True).startswith(
+                                ("nAff", "na", "ORCID", "View", "Email"),
+                            )
+                        ]
+                        break
+
+                return {
+                    "index": index,
+                    "affiliations": affiliations,
+                    "authors": authors,
+                    "success": True,
+                    "link": paper_link,
+                }
+
+            except Exception as e:
+                return {
+                    "index": index,
+                    "affiliations": [],
+                    "authors": [],
+                    "success": False,
+                    "error": str(e),
+                    "link": paper_link,
+                }
+
+        # Main processing
+        session = requests.Session()
+        session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            },
+        )
 
         try:
-            _csv_file = _load_csv(csv_file_path)
+            _csv_file = pd.read_csv(csv_file_path)
             _csv_file.drop_duplicates(inplace=True)
-            print("\n📍 Step 3: Extracting affiliations and full names!")
+            print(f"\n📍 Step 3: Fast extraction with {max_workers} threads!")
 
-            for _index, row in _csv_file.iterrows():
-                paper_link = row["Link"]
-                try:
-                    # Add navigation timeout and options
-                    await page.goto(
-                        paper_link,
-                        timeout=10000,
-                        wait_until="domcontentloaded",
-                    )
-                    print(f"    [INFO] Navigating to paper: {paper_link}")
+            # Use ThreadPoolExecutor for concurrent processing
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers,
+            ) as executor:
+                # Submit all tasks
+                futures = {
+                    executor.submit(
+                        process_single_article,
+                        session,
+                        row["Link"],
+                        index,
+                    ): index
+                    for index, row in _csv_file.iterrows()
+                }
 
-                    # Add small delay for content loading
-                    await page.wait_for_timeout(2000)
+                # Process results as they complete
+                for future in concurrent.futures.as_completed(futures):
+                    result = future.result()
+                    index = result["index"]
 
-                    affiliations = []
-                    authors_list = []
-
-                    # Try to get affiliations (if fails, continue with empty list)
-                    try:
-                        await page.wait_for_selector(
-                            'xpath=//*[@id="affiliations"]',
-                            timeout=5000,
-                        )
-                        affiliations = await page.query_selector_all(
-                            'xpath=//*[@id="Aff1"]/p[1]',
-                        )
-                    except Exception:
-                        print(f"    ⚠️ No affiliations found for: {paper_link}")
-
-                    # Try to get authors (if fails, continue with empty list)
-                    try:
-                        authors = await page.query_selector_all(
-                            '//ul[contains(@class, "c-article-author-list")]//li//a',
-                        )
-
-                        for author in authors:
-                            author_text = await author.text_content()
-                            if (
-                                not author_text.startswith(("nAff", "na", "ORCID"))
-                                and len(author_text) > 2
-                            ):
-                                authors_list.append(
-                                    author_text.replace("&", ",").strip(),
-                                )
-                    except Exception:
-                        print(f"    ⚠️ No authors found for: {paper_link}")
-
-                    # Update CSV with whatever data we found
-                    if affiliations:
-                        affil_texts = []
-                        for affiliation in affiliations:
-                            try:
-                                affil_text = await affiliation.text_content()
-                                affil_texts.append(affil_text.strip())
-                            except Exception:
-                                continue
-                        if affil_texts:
-                            _csv_file.at[_index, "Affiliations"] = "; ".join(
-                                affil_texts,
+                    if result["success"]:
+                        if result["affiliations"]:
+                            _csv_file.at[index, "Affiliations"] = "; ".join(
+                                result["affiliations"],
                             )
-                            print(f"    ✅ Added {len(affil_texts)} affiliations")
+                            print(
+                                f"    ✅ Article {index + 1}: Added {len(result['affiliations'])} affiliations",
+                            )
 
-                    if authors_list:
-                        _csv_file.at[_index, "Authors"] = ", ".join(authors_list)
-                        print(f"    ✅ Added {len(authors_list)} authors")
-
-                    print("---" * 30)
-
-                except Exception as e:
-                    print(f"    ⚠️ Error processing {paper_link}: {str(e)}")
-                    continue
-
-                # Save progress after each article
-                if _index % 10 == 0:  # Save every 10 articles
-                    try:
-                        _csv_file.to_csv(csv_file_path, index=False)
-                        print(f"    💾 Progress saved at article {_index + 1}")
-                    except Exception as save_err:
-                        print(f"    ⚠️ Error saving progress: {str(save_err)}")
+                        if result["authors"]:
+                            _csv_file.at[index, "Authors"] = ", ".join(
+                                result["authors"],
+                            )
+                            print(
+                                f"    ✅ Article {index + 1}: Added {len(result['authors'])} authors",
+                            )
+                    else:
+                        print(
+                            f"    ❌ Article {index + 1}: Failed - {result.get('error', 'Unknown error')}",
+                        )
 
             # Final save
-            try:
-                _csv_file.to_csv(csv_file_path, index=False)
-                print("    💾 Final save completed")
-            except Exception as final_save_err:
-                print(f"    ⚠️ Error during final save: {str(final_save_err)}")
+            _csv_file.to_csv(csv_file_path, index=False)
+            print("    💾 All processing completed and saved!")
 
         except Exception as e:
-            print(f"    ❌ Critical error in extraction process: {str(e)}")
+            print(f"    ❌ Critical error: {str(e)}")
+        finally:
+            session.close()
 
 
 async def async_springer(link: str, proxies: Optional[Dict[str, str]] = None) -> None:
@@ -755,8 +796,7 @@ async def async_springer(link: str, proxies: Optional[Dict[str, str]] = None) ->
                 )
                 if springer_file_path:
                     # Process affiliations only if articles were found and CSV was saved
-                    await SpringerScraper_obj.extract_affiliations_and_full_names(
-                        page,
+                    SpringerScraper.extract_affiliations_and_full_names_fast(
                         springer_file_path,
                     )
                 else:
