@@ -290,7 +290,7 @@ def main_run(link: str, proxies=None):
     # Parse date range from URL
     if "years." not in link:
         print("No date range specified in the link. Using default date range.")
-        start_date = "2005"
+        start_date = "2010"
         end_date = "2025"
     else:
         try:
@@ -303,11 +303,11 @@ def main_run(link: str, proxies=None):
                     end_date = end_date.split("&")[0]
             else:
                 print("ERROR: Invalid date range format in URL")
-                start_date = "2005"
+                start_date = "2010"
                 end_date = "2025"
         except Exception as e:
             print(f"ERROR: Could not parse date range: {e}")
-            start_date = "2005"
+            start_date = "2010"
             end_date = "2025"
 
     print(f"DEBUG: Date range - start: {start_date}, end: {end_date}")
@@ -323,7 +323,7 @@ def main_run(link: str, proxies=None):
             print("WARNING: Date range seems unusual")
     except ValueError:
         print("ERROR: Invalid year format. Using defaults.")
-        start_year, end_year = 2005, 2025
+        start_year, end_year = 2010, 2025
 
     print("Final search parameters:")
     print(f"  Search term: '{search_term}'")
