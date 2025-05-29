@@ -1,0 +1,35 @@
+repos:
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.8
+    hooks:
+    -   id: ruff
+        args: [--fix, --exit-non-zero-on-fix, --ignore=E501]
+        exclude: '(^|/)playground\.ipynb$'
+    -   id: ruff-format
+
+-   repo: local
+    hooks:
+    -   id: pytest
+        name: pytest
+        entry: ./.venv/bin/python -m pytest sd_pm_ls_scraper/tests/
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [commit]
+
+# Common pre-commit hooks
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+    -   id: check-added-large-files
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+    -   id: check-yaml
+    -   id: file-contents-sorter
+        files: requirements.*\.txt$
+
+# This hook is for adding trailing commas
+-   repo: https://github.com/asottile/add-trailing-comma
+    rev: v3.1.0
+    hooks:
+    -   id: add-trailing-comma
