@@ -8,6 +8,7 @@ dependencies = [
     "aiohttp>=3.11.12",
     "biopython>=1.85",
     "browser-use>=0.1.39",
+    "git-filter-repo>=2.47.0",
     "notebook>=7.3.2",
     "openai>=1.63.0",
     "openpyxl>=3.1.5",
