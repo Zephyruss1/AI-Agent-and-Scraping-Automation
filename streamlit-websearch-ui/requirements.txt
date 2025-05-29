@@ -1,0 +1,12 @@
+asyncio
+google-auth-httplib2
+google-auth-oauthlib
+google-auth==2.29.0
+gspread
+langchain-openai
+oauth2client
+pandas
+python-dotenv
+requests
+scikit-learn
+streamlit==1.44.1

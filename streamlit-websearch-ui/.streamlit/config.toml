@@ -1,0 +1,26 @@
+[general]
+email = "your_email@example.com"
+# The email address for contacting the project owner or maintainer.
+
+[server]
+headless = true
+# Run the server in headless mode, suitable for deployment.
+
+port = 8501
+# The port on which the Streamlit app will run.
+
+enableCORS = false
+# Disable Cross-Origin Resource Sharing for the app.
+
+[theme]
+primaryColor = "#F39C12"
+# Primary color for the Streamlit app theme.
+
+backgroundColor = "#FFFFFF"
+# Background color for the Streamlit app.
+
+secondaryBackgroundColor = "#F0F0F0"
+# Secondary background color for the Streamlit app.
+
+textColor = "#000000"
+# Text color for the Streamlit app.

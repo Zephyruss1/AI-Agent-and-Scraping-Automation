@@ -1,0 +1,43 @@
+# Ruff configuration
+
+# Global settings
+line-length = 88  # Same as Black
+target-version = "py311"  # Target Python 3.11
+
+[lint]
+# Enable flake8-bugbear (`B`) rules.
+select = ["E", "F", "B", "I"]
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".git",
+    ".ruff_cache",
+    "__pypackages__",
+    "dist",
+    "build",
+    "venv",
+    "env",
+    ".env",
+    ".venv",
+]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Enable auto-fixing imports and sorting
+[lint.isort]
+known-first-party = ["arxiv_project"]  # Replace with your package name
+
+# Rules configuration
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
+
+[format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
