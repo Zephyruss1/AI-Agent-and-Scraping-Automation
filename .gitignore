@@ -23,3 +23,7 @@ TODO.txt
 *.png
 *.ipynb
 *.xlsx
+
+.env
+aiagenttest-455613-a4d701f3b9ce.json
+pybliometrics.cfg
